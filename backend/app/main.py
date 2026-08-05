@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 import httpx
 from openpyxl import Workbook
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -218,13 +218,19 @@ async def batch_accounts(items: list[AccountCreate], session: AsyncSession = Dep
         raise HTTPException(status_code=422, detail="批量录入数量需在 1 到 100 之间")
     workspace = await get_workspace(session)
     results = []
+    seen_open_ids: set[str] = set()
     for index, item in enumerate(items, start=1):
+        if item.platform_open_id in seen_open_ids:
+            results.append({"row_number": index, "status": "failed", "error": "账号在本批次中重复"})
+            continue
+        seen_open_ids.add(item.platform_open_id)
         exists = await session.scalar(select(Account.id).where(Account.workspace_id == workspace.id, Account.platform_open_id == item.platform_open_id))
         if exists:
             results.append({"row_number": index, "status": "failed", "error": "账号已存在"})
             continue
         account = Account(workspace_id=workspace.id, platform_open_id=item.platform_open_id, nickname=item.nickname, alias=item.alias, priority=item.priority)
         session.add(account)
+        await session.flush()
         results.append({"row_number": index, "status": "created", "account_id": account.id})
     session.add(AuditLog(workspace_id=workspace.id, user_id=user.id, action="account.batch_create", resource_type="account", details={"count": len(items)}))
     await session.commit()
@@ -269,6 +275,12 @@ async def disable_account(account_id: str, session: AsyncSession = Depends(get_d
 async def delete_account(account_id: str, session: AsyncSession = Depends(get_db), user: User = Depends(require_role(Role.ADMIN.value))):
     account = await get_account(session, account_id)
     session.add(AuditLog(workspace_id=account.workspace_id, user_id=user.id, action="account.delete", resource_type="account", resource_id=account.id, details={"platform_open_id": account.platform_open_id, "nickname": account.nickname}))
+    video_ids = list((await session.scalars(select(Video.id).where(Video.account_id == account.id))).all())
+    if video_ids:
+        await session.execute(delete(Diagnosis).where(Diagnosis.video_id.in_(video_ids)))
+    await session.execute(delete(AccountMetricSnapshot).where(AccountMetricSnapshot.account_id == account.id))
+    await session.execute(delete(SyncJob).where(SyncJob.account_id == account.id))
+    await session.execute(delete(OAuthState).where(OAuthState.account_id == account.id))
     await session.delete(account)
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
