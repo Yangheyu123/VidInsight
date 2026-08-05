@@ -133,6 +133,25 @@ async def me(user: User = Depends(current_user), session: AsyncSession = Depends
     return {"id": user.id, "email": user.email, "display_name": user.display_name, "role": user.role, "workspace_id": workspace.id}
 
 
+@app.get("/api/v1/integrations/douyin/preflight")
+async def douyin_preflight(_: User = Depends(require_role(Role.ADMIN.value, Role.OPERATOR.value))) -> dict:
+    settings = get_settings()
+    required = ["DOUYIN_CLIENT_KEY", "DOUYIN_CLIENT_SECRET", "DOUYIN_REDIRECT_URI"]
+    configured = {
+        "DOUYIN_CLIENT_KEY": bool(settings.douyin_client_key),
+        "DOUYIN_CLIENT_SECRET": bool(settings.douyin_client_secret),
+        "DOUYIN_REDIRECT_URI": bool(settings.douyin_redirect_uri),
+    }
+    return {
+        "ready_for_oauth": all(configured.values()),
+        "configured": configured,
+        "requested_scopes": settings.douyin_scope_list,
+        "missing": [name for name in required if not configured[name]],
+        "field_gaps": ["completion_rate", "video_follow_conversion"],
+        "notes": ["Official video query supports play/like/comment/share/forward only with an approved capability and known item_id.", "Do not enable production collection until the approved scope, use case, quota, and field samples have been recorded."],
+    }
+
+
 @app.post("/api/v1/accounts/{account_id}/authorize")
 async def authorize_douyin_account(account_id: str, session: AsyncSession = Depends(get_db), _: User = Depends(require_role(Role.ADMIN.value, Role.OPERATOR.value))) -> dict:
     account = await get_account(session, account_id)
