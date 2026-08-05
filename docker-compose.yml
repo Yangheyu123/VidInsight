@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: vidinsight
+      POSTGRES_USER: vidinsight
+      POSTGRES_PASSWORD: vidinsight
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vidinsight -d vidinsight"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - redisdata:/data
+
+  api:
+    build: ./backend
+    env_file: .env
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - exports:/app/exports
+
+  worker:
+    build: ./backend
+    env_file: .env
+    command: celery -A app.tasks.celery_app worker -l INFO -Q collect,analysis,export
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - exports:/app/exports
+
+  beat:
+    build: ./backend
+    env_file: .env
+    command: celery -A app.tasks.celery_app beat -l INFO
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+
+volumes:
+  pgdata:
+  redisdata:
+  exports:
