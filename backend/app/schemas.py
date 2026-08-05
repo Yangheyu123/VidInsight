@@ -51,3 +51,7 @@ class ExportRequest(BaseModel):
     account_ids: list[str] = []
     period: Literal["day", "week", "month", "custom"] = "custom"
 
+
+class AccountDataImport(BaseModel):
+    account_snapshot: AccountSnapshotImport | None = None
+    videos: list[VideoImport] = Field(default_factory=list, max_length=500)

@@ -33,7 +33,7 @@ from app.models import (
     Workspace,
 )
 from app.douyin import authorization_url, encrypt, exchange_code, expiration, new_state, state_hash
-from app.schemas import AccountCreate, AccountPatch, AccountSnapshotImport, ExportRequest, LoginRequest, VideoImport
+from app.schemas import AccountCreate, AccountDataImport, AccountPatch, AccountSnapshotImport, ExportRequest, LoginRequest, VideoImport
 from app.security import create_access_token, current_user, hash_password, require_role, verify_password
 
 REQUIRED_METRICS = {
@@ -296,6 +296,15 @@ async def sync_job_detail(job_id: str, session: AsyncSession = Depends(get_db), 
     return {"id": job.id, "account_id": job.account_id, "trigger": job.trigger, "status": job.status, "records_written": job.records_written, "error_message": job.error_message, "created_at": job.created_at, "completed_at": job.completed_at}
 
 
+@app.get("/api/v1/sync-jobs")
+async def list_sync_jobs(account_id: str | None = None, limit: int = Query(default=30, ge=1, le=100), session: AsyncSession = Depends(get_db), _: User = Depends(current_user)) -> list[dict]:
+    query = select(SyncJob).order_by(SyncJob.created_at.desc()).limit(limit)
+    if account_id:
+        query = query.where(SyncJob.account_id == account_id)
+    rows = (await session.scalars(query)).all()
+    return [{"id": job.id, "account_id": job.account_id, "trigger": job.trigger, "status": job.status, "records_written": job.records_written, "error_message": job.error_message, "created_at": job.created_at, "completed_at": job.completed_at} for job in rows]
+
+
 @app.post("/api/v1/accounts/{account_id}/snapshots", status_code=status.HTTP_201_CREATED)
 async def import_account_snapshot(account_id: str, body: AccountSnapshotImport, session: AsyncSession = Depends(get_db), _: User = Depends(require_role(Role.ADMIN.value, Role.OPERATOR.value))) -> dict:
     account = await get_account(session, account_id)
@@ -322,6 +331,41 @@ async def import_video(account_id: str, body: VideoImport, session: AsyncSession
     account.last_synced_at = body.collected_at
     await session.commit()
     return {"video_id": video.id, "metric_id": metric.id}
+
+
+@app.post("/api/v1/accounts/{account_id}/data/import", status_code=status.HTTP_201_CREATED)
+async def import_account_data(account_id: str, body: AccountDataImport, session: AsyncSession = Depends(get_db), _: User = Depends(require_role(Role.ADMIN.value, Role.OPERATOR.value))) -> dict:
+    """Append a validated batch from an approved export or a manual backfill.
+
+    The transaction is all-or-nothing for invalid input; duplicate snapshot points
+    are reported and preserved rather than overwriting historical data.
+    """
+    account = await get_account(session, account_id)
+    created = {"account_snapshots": 0, "video_metrics": 0}
+    skipped = {"account_snapshots": 0, "video_metrics": 0}
+    if body.account_snapshot:
+        item = body.account_snapshot
+        duplicate = await session.scalar(select(AccountMetricSnapshot.id).where(AccountMetricSnapshot.account_id == account.id, AccountMetricSnapshot.collected_at == item.collected_at, AccountMetricSnapshot.source == item.source))
+        if duplicate:
+            skipped["account_snapshots"] += 1
+        else:
+            session.add(AccountMetricSnapshot(workspace_id=account.workspace_id, account_id=account.id, follower_count=item.follower_count, collected_at=item.collected_at, source=item.source))
+            created["account_snapshots"] += 1
+    for item in body.videos:
+        video = await session.scalar(select(Video).where(Video.account_id == account.id, Video.platform_item_id == item.platform_item_id))
+        if not video:
+            video = Video(workspace_id=account.workspace_id, account_id=account.id, platform_item_id=item.platform_item_id, title=item.title, published_at=item.published_at, duration_ms=item.duration_ms)
+            session.add(video)
+            await session.flush()
+        duplicate = await session.scalar(select(VideoMetricSnapshot.id).where(VideoMetricSnapshot.video_id == video.id, VideoMetricSnapshot.collected_at == item.collected_at, VideoMetricSnapshot.source == item.source))
+        if duplicate:
+            skipped["video_metrics"] += 1
+            continue
+        session.add(VideoMetricSnapshot(workspace_id=account.workspace_id, video_id=video.id, play_count=item.play_count, like_count=item.like_count, comment_count=item.comment_count, share_count=item.share_count, forward_count=item.forward_count, completion_rate=item.completion_rate, completion_sample_count=item.completion_sample_count, video_follow_conversion=item.video_follow_conversion, collected_at=item.collected_at, source=item.source))
+        account.last_synced_at = item.collected_at
+        created["video_metrics"] += 1
+    await session.commit()
+    return {"created": created, "skipped": skipped}
 
 
 @app.get("/api/v1/dashboard/overview")
