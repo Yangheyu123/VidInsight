@@ -246,26 +246,29 @@ async def patch_account(account_id: str, body: AccountPatch, session: AsyncSessi
 
 
 @app.post("/api/v1/accounts/{account_id}/enable")
-async def enable_account(account_id: str, session: AsyncSession = Depends(get_db), _: User = Depends(require_role(Role.ADMIN.value, Role.OPERATOR.value))) -> dict:
+async def enable_account(account_id: str, session: AsyncSession = Depends(get_db), user: User = Depends(require_role(Role.ADMIN.value, Role.OPERATOR.value))) -> dict:
     account = await get_account(session, account_id)
     account.collection_enabled = True
     account.authorization_status = AccountStatus.ACTIVE.value
+    session.add(AuditLog(workspace_id=account.workspace_id, user_id=user.id, action="account.enable", resource_type="account", resource_id=account.id))
     await session.commit()
     return serialize_account(account)
 
 
 @app.post("/api/v1/accounts/{account_id}/disable")
-async def disable_account(account_id: str, session: AsyncSession = Depends(get_db), _: User = Depends(require_role(Role.ADMIN.value, Role.OPERATOR.value))) -> dict:
+async def disable_account(account_id: str, session: AsyncSession = Depends(get_db), user: User = Depends(require_role(Role.ADMIN.value, Role.OPERATOR.value))) -> dict:
     account = await get_account(session, account_id)
     account.collection_enabled = False
     account.authorization_status = AccountStatus.DISABLED.value
+    session.add(AuditLog(workspace_id=account.workspace_id, user_id=user.id, action="account.disable", resource_type="account", resource_id=account.id))
     await session.commit()
     return serialize_account(account)
 
 
 @app.delete("/api/v1/accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_account(account_id: str, session: AsyncSession = Depends(get_db), _: User = Depends(require_role(Role.ADMIN.value))):
+async def delete_account(account_id: str, session: AsyncSession = Depends(get_db), user: User = Depends(require_role(Role.ADMIN.value))):
     account = await get_account(session, account_id)
+    session.add(AuditLog(workspace_id=account.workspace_id, user_id=user.id, action="account.delete", resource_type="account", resource_id=account.id, details={"platform_open_id": account.platform_open_id, "nickname": account.nickname}))
     await session.delete(account)
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -546,6 +549,7 @@ async def period_metrics(session: AsyncSession, start_at: datetime, end_at: date
     videos = (await session.scalars(select(Video))).all()
     selected = [video for video in videos if not account_ids or video.account_id in account_ids]
     totals = {"play_delta": 0, "like_delta": 0, "comment_delta": 0, "forward_delta": 0}
+    anomaly_count = 0
     completion_num = completion_den = 0.0
     for video in selected:
         snapshots = (await session.scalars(select(VideoMetricSnapshot).where(VideoMetricSnapshot.video_id == video.id).order_by(VideoMetricSnapshot.collected_at))).all()
@@ -555,25 +559,32 @@ async def period_metrics(session: AsyncSession, start_at: datetime, end_at: date
             continue
         first = before[-1] if before else inside[0]
         last = inside[-1]
-        totals["play_delta"] += max(0, last.play_count - first.play_count)
-        totals["like_delta"] += max(0, last.like_count - first.like_count)
-        totals["comment_delta"] += max(0, last.comment_count - first.comment_count)
-        totals["forward_delta"] += max(0, last.forward_count - first.forward_count)
+        for total_key, field in (("play_delta", "play_count"), ("like_delta", "like_count"), ("comment_delta", "comment_count"), ("forward_delta", "forward_count")):
+            delta = getattr(last, field) - getattr(first, field)
+            if delta < 0:
+                anomaly_count += 1
+            else:
+                totals[total_key] += delta
         if last.completion_rate is not None:
             weight = last.completion_sample_count or 1
             completion_num += float(last.completion_rate) * weight
             completion_den += weight
     accounts = (await session.scalars(select(Account))).all()
     follower_delta = 0
-    for account in accounts:
+    selected_accounts = [account for account in accounts if not account_ids or account.id in account_ids]
+    for account in selected_accounts:
         if account_ids and account.id not in account_ids:
             continue
         snapshots = (await session.scalars(select(AccountMetricSnapshot).where(AccountMetricSnapshot.account_id == account.id).order_by(AccountMetricSnapshot.collected_at))).all()
         before = [row for row in snapshots if row.collected_at < start_at]
         inside = [row for row in snapshots if start_at <= row.collected_at < end_at]
         if inside:
-            follower_delta += max(0, inside[-1].follower_count - (before[-1].follower_count if before else inside[0].follower_count))
-    return {"metrics": {**totals, "follower_delta": follower_delta, "avg_completion_rate": completion_num / completion_den if completion_den else None}, "account_count": len(accounts), "video_count": len(selected)}
+            delta = inside[-1].follower_count - (before[-1].follower_count if before else inside[0].follower_count)
+            if delta < 0:
+                anomaly_count += 1
+            else:
+                follower_delta += delta
+    return {"metrics": {**totals, "follower_delta": follower_delta, "avg_completion_rate": completion_num / completion_den if completion_den else None, "anomaly_count": anomaly_count}, "account_count": len(selected_accounts), "video_count": len(selected)}
 
 
 async def export_video_rows(session: AsyncSession, start_at: datetime, end_at: datetime, account_ids: list[str]) -> list[dict]:
@@ -600,10 +611,15 @@ def write_xlsx(job_id: str, summary: dict, rows: list[dict]) -> Path:
     detail.append(["视频 ID", "标题", "账号 ID", "发布时间", "播放", "点赞", "评论", "转发", "完播率", "来源"])
     for row in rows:
         metric = row["latest_metrics"]
-        detail.append([row["platform_item_id"], row["title"], row["account_id"], row["published_at"].isoformat(), metric.get("play_count"), metric.get("like_count"), metric.get("comment_count"), metric.get("forward_count"), metric.get("completion_rate"), "latest_snapshot"])
+        detail.append([xlsx_text(row["platform_item_id"]), xlsx_text(row["title"]), xlsx_text(row["account_id"]), row["published_at"].isoformat(), metric.get("play_count"), metric.get("like_count"), metric.get("comment_count"), metric.get("forward_count"), metric.get("completion_rate"), "latest_snapshot"])
     glossary = workbook.create_sheet("口径说明")
     glossary.append(["指标", "口径"])
     glossary.append(["周期增量", "周期结束最后快照减去周期开始前最后快照"])
     glossary.append(["平均完播率", "按 completion_sample_count 加权；缺失样本数时简单平均"])
     workbook.save(path)
     return path
+
+
+def xlsx_text(value: object) -> str:
+    text = "" if value is None else str(value)
+    return f"'{text}" if text[:1] in {"=", "+", "-", "@"} else text
