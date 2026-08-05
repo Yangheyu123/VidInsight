@@ -291,16 +291,26 @@ async def account_analytics(account_id: str, start_at: datetime, end_at: datetim
     account_metrics = await period_metrics(session, start_at, end_at, [account.id])
     account_trends = await trends(start_at, end_at, [account.id], session)
     videos = await list_videos(account_id=account.id, session=session, _=_)
+    diagnoses = (await session.scalars(select(Diagnosis).join(Video, Diagnosis.video_id == Video.id).where(Video.account_id == account.id).order_by(Diagnosis.created_at.desc()))).all()
+    by_video: dict[str, list[dict]] = {}
+    for item in diagnoses:
+        by_video.setdefault(item.video_id, []).append({"rule_code": item.rule_code, "title": item.title, "suggestion": item.suggestion, "created_at": item.created_at})
+    for video in videos:
+        video["diagnoses"] = by_video.get(video["id"], [])
     return {"account": serialize_account(account), "range": {"start_at": start_at, "end_at": end_at}, **account_metrics, "trends": account_trends, "videos": videos}
 
 
 @app.get("/api/v1/videos")
-async def list_videos(account_id: str | None = None, q: str | None = None, sort: str = "-published_at", session: AsyncSession = Depends(get_db), _: User = Depends(current_user)) -> list[dict]:
+async def list_videos(account_id: str | None = None, q: str | None = None, start_at: datetime | None = None, end_at: datetime | None = None, sort: str = "-published_at", session: AsyncSession = Depends(get_db), _: User = Depends(current_user)) -> list[dict]:
     query = select(Video)
     if account_id:
         query = query.where(Video.account_id == account_id)
     if q:
         query = query.where(Video.title.ilike(f"%{q}%"))
+    if start_at:
+        query = query.where(Video.published_at >= start_at)
+    if end_at:
+        query = query.where(Video.published_at < end_at)
     videos = (await session.scalars(query.order_by(Video.published_at.desc()))).all()
     values = [await serialize_video(session, video) for video in videos]
     key = {"play_count": "play_count", "like_count": "like_count", "comment_count": "comment_count", "forward_count": "forward_count"}.get(sort.lstrip("-"))
@@ -465,9 +475,9 @@ async def export_video_rows(session: AsyncSession, start_at: datetime, end_at: d
     for video in (await session.scalars(select(Video))).all():
         if account_ids and video.account_id not in account_ids:
             continue
-        result = await serialize_video(session, video)
-        if result["latest_metrics"]:
-            rows.append(result)
+        snapshots = (await session.scalars(select(VideoMetricSnapshot).where(VideoMetricSnapshot.video_id == video.id, VideoMetricSnapshot.collected_at >= start_at, VideoMetricSnapshot.collected_at < end_at).order_by(VideoMetricSnapshot.collected_at.desc()).limit(1))).all()
+        if snapshots:
+            rows.append({"id": video.id, "account_id": video.account_id, "platform_item_id": video.platform_item_id, "title": video.title, "published_at": video.published_at, "latest_metrics": metric_dict(snapshots[0])})
     return rows
 
 

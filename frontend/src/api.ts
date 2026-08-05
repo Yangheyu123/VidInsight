@@ -1,6 +1,6 @@
 export type Account = { id: string; platform_open_id: string; nickname: string; alias?: string | null; authorization_status: string; collection_enabled: boolean; priority: number; last_synced_at?: string | null };
 export type Metric = { play_count: number; like_count: number; comment_count: number; share_count: number; forward_count: number; completion_rate: number | null; video_follow_conversion?: number | null };
-export type Video = { id: string; account_id: string; platform_item_id: string; title: string; published_at: string; latest_metrics: Metric; history?: Array<Metric & { collected_at: string; source: string }> };
+export type Video = { id: string; account_id: string; platform_item_id: string; title: string; published_at: string; latest_metrics: Metric; history?: Array<Metric & { collected_at: string; source: string }>; diagnoses?: Array<{ rule_code: string; title: string; suggestion: string }> };
 export type Overview = { metrics: { play_delta: number; like_delta: number; comment_delta: number; forward_delta: number; follower_delta: number; avg_completion_rate: number | null }; account_count: number; video_count: number };
 
 const base = "/api/v1";
