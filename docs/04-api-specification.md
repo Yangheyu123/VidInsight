@@ -113,6 +113,8 @@
 | POST | `/workspaces/{wid}/accounts/{account_id}/disable` | operator+ | 停用账号并撤销待执行任务 |
 | DELETE | `/workspaces/{wid}/accounts/{account_id}` | admin | 解绑并停止采集 |
 
+`/sync` 和定时任务均按工作区的 `metric_requirement` 清单执行：播放、点赞、评论、转发、完播率为视频级采集；新增粉丝为账号级快照采集。任务响应返回每个必需指标的 `source/status/records_written`，任一必需指标未写入正式快照时任务状态不得为 `succeeded`。
+
 账号摘要示例：
 
 ```json
@@ -139,6 +141,7 @@
 | GET | `/workspaces/{wid}/dashboard/trends` | 时间序列趋势 |
 | GET | `/workspaces/{wid}/dashboard/top-videos` | Top 视频 |
 | GET | `/workspaces/{wid}/dashboard/account-ranking` | 账号排行 |
+| GET | `/workspaces/{wid}/metrics/coverage` | 六项必需指标与诊断输入的来源、覆盖率、最近校验和阻塞原因 |
 
 公共参数：`period=day|week|month|custom`、`start_at`、`end_at`、`account_id`、`timezone`、`sort`。响应包含：
 
@@ -160,6 +163,8 @@
   }
 }
 ```
+
+`/metrics/coverage` 是上线门禁接口；只有全部 required 指标覆盖率为 100%、来源非 `model_estimate`、最近校验未过期时返回 `ready_for_acceptance=true`。
 
 ### 6.4 视频与指标
 

@@ -95,7 +95,7 @@ erDiagram
 
 #### `account_metrics_snapshot`
 
-存储粉丝数、主页访问量等账号级历史：`workspace_id`、`account_id`、各项 `BIGINT` 指标、`collected_at`、`source`、`request_id`。唯一约束 `(account_id, collected_at, source)`。
+存储 `follower_count`、主页访问量等账号级历史：`workspace_id`、`account_id`、各项 `BIGINT` 指标、`collected_at`、`source`、`request_id`。唯一约束 `(account_id, collected_at, source)`。`follower_count` 为本期必填验收字段；每个入网账号必须具备可计算期初/期末增量的可靠快照。
 
 ### 3.3 视频与指标
 
@@ -129,8 +129,10 @@ erDiagram
 | `comment_count`, `share_count` | BIGINT | 非负累计值 |
 | `favorite_count` | BIGINT nullable | 缺失必须为 null，不写 0 |
 | `forward_count`, `download_count` | BIGINT nullable | 以实际字段为准 |
-| `completion_rate`, `avg_watch_ms` | nullable | 仅合法来源存在时写入 |
-| `source` | VARCHAR(30) | official_api/import/first_party/model_estimate |
+| `completion_rate` | NUMERIC(8,6) | 本期必填验收字段，范围 0–1 |
+| `completion_sample_count` | BIGINT | 完播率样本数；存在时用于加权平均 |
+| `avg_watch_ms` | BIGINT nullable | 非本期验收指标，有合法来源时写入 |
+| `source` | VARCHAR(30) | `douyin_api/computer_use/authorized_import/contract_api/controlled_crawler/model_estimate` |
 | `source_ref` | VARCHAR(200) | 导入批次、API 请求或模型版本 |
 | `collected_at` | TIMESTAMPTZ | 指标时点 |
 | `ingested_at` | TIMESTAMPTZ | 系统入库时间 |
@@ -233,6 +235,10 @@ erDiagram
 ### 4.6 `collection_sample` 与 `collection_quarantine`
 
 `collection_sample` 保存脱敏抽检结果、页面可见值、解析值、差异、复核人和时间；`collection_quarantine` 保存未进入正式事实层的解析结果、响应哈希、异常规则、schema 指纹和最小排障摘要。两表禁止保存完整 Cookie、Token、未脱敏个人信息或无保留必要的完整页面。
+
+### 4.7 `metric_requirement`
+
+为防止必需字段只停留在文档中，`metric_requirement` 为每个工作区保存 `metric_code`、`scope`（video/account/period）、`required=true`、允许来源、当前绑定连接器、`coverage_status`、最近有效时间、校验人和校验时间。MVP 固定登记：`play_count`、`like_count`、`comment_count`、`forward_count`、`follower_delta`、`completion_rate` 以及五类诊断所需的 `video_follow_conversion`。任一 `required=true` 指标没有有效来源或覆盖率未达 100% 时，工作区状态为 `not_ready_for_acceptance`。
 
 ## 5. 文件与原始数据布局
 
