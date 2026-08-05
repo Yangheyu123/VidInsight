@@ -7,6 +7,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.collectors import persist_payload, pull_account_payload
 from app.database import SessionLocal
+from app.douyin import decrypt, encrypt, expiration, refresh_access_token
 from app.models import Account, JobStatus, SyncJob
 
 settings = get_settings()
@@ -17,13 +18,44 @@ celery_app.conf.update(
     result_serializer="json",
     accept_content=["json"],
     timezone="Asia/Shanghai",
-    beat_schedule={"schedule-enabled-accounts": {"task": "app.tasks.celery_app.schedule_enabled_accounts", "schedule": 300.0}},
+    beat_schedule={
+        "schedule-enabled-accounts": {"task": "app.tasks.celery_app.schedule_enabled_accounts", "schedule": 300.0},
+        "refresh-douyin-tokens": {"task": "app.tasks.celery_app.refresh_due_douyin_tokens", "schedule": 3600.0},
+    },
 )
 
 
 @celery_app.task(name="app.tasks.celery_app.schedule_enabled_accounts")
 def schedule_enabled_accounts() -> int:
     return asyncio.run(_schedule_enabled_accounts())
+
+
+@celery_app.task(name="app.tasks.celery_app.refresh_due_douyin_tokens")
+def refresh_due_douyin_tokens() -> int:
+    return asyncio.run(_refresh_due_douyin_tokens())
+
+
+async def _refresh_due_douyin_tokens() -> int:
+    now = datetime.now(timezone.utc)
+    refreshed = 0
+    async with SessionLocal() as session:
+        accounts = (await session.scalars(select(Account).where(Account.refresh_token_encrypted.is_not(None), Account.token_expires_at.is_not(None), Account.token_expires_at <= now))).all()
+        for account in accounts:
+            try:
+                payload = await refresh_access_token(decrypt(account.refresh_token_encrypted))
+                account.access_token_encrypted = encrypt(payload["access_token"])
+                account.token_expires_at = expiration(payload.get("expires_in"))
+                if payload.get("refresh_token"):
+                    account.refresh_token_encrypted = encrypt(payload["refresh_token"])
+                    account.refresh_token_expires_at = expiration(payload.get("refresh_expires_in"))
+                account.authorization_status = "active"
+                account.last_sync_error = None
+                refreshed += 1
+            except Exception as exc:
+                account.authorization_status = "expired"
+                account.last_sync_error = f"Token refresh failed: {exc.__class__.__name__}"
+        await session.commit()
+    return refreshed
 
 
 async def _schedule_enabled_accounts() -> int:
