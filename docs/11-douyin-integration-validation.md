@@ -31,9 +31,23 @@
 
 在这些材料具备之前，`/api/v1/metrics/coverage` 应保持 `ready_for_acceptance=false`，这是有意的上线保护而非缺陷。
 
+## 已实现的官方 OAuth 接入
+
+系统使用网站应用授权码模式，已经实现以下固定流程：
+
+1. `POST /api/v1/accounts/{account_id}/authorize` 创建十分钟有效、单次使用的 `state`，并生成官方授权页地址：`https://open.douyin.com/platform/oauth/connect/`。
+2. 平台回调 `GET /api/v1/integrations/douyin/callback?code=...&state=...`；服务端验证 `state` 后，以 `application/x-www-form-urlencoded` 调用 `https://open.douyin.com/oauth/access_token/`。
+3. access token 和 refresh token 仅以加密形式保存；前端和 API 响应不会返回令牌明文。
+4. Celery Beat 每小时检查已过期的 access token，调用 `https://open.douyin.com/oauth/refresh_token/` 续期；失败后账号转为 `expired` 并要求重新授权。
+
+待补配置：`DOUYIN_CLIENT_KEY`、`DOUYIN_CLIENT_SECRET`、`DOUYIN_REDIRECT_URI`（必须为控制台登记的 HTTPS 完整回调地址）和已审批的 `DOUYIN_SCOPES`。默认 scope 仅为 `user_info`，不要在未经批准时加入数据类 scope。
+
 ## 参考资料
 
 - [用户互动数据](https://developer.open-douyin.com/capacity-center-page/capacity-detail/7180284622729658424)
 - [查询特定视频的视频数据](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/server/basic-abilities/video-id-convert/user-video-data/video-data)
 - [短视频详细数据](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/server/operation/data-analysis/video-analysis/video-detail-analysis-data)
 - [短视频挂载小程序数据分析](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/operation/data/data-center/video)
+- [抖音获取授权码](https://developer.open-douyin.com/docs/resource/zh-CN/dop/develop/openapi/account-permission/douyin-get-permission-code)
+- [获取 access_token](https://developer.open-douyin.com/docs/resource/zh-CN/dop/develop/openapi/account-permission/get-access-token/)
+- [刷新 access_token](https://developer.open-douyin.com/docs/resource/zh-CN/dop/develop/openapi/account-permission/refresh-access-token)
