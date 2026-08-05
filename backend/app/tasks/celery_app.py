@@ -5,6 +5,7 @@ from celery import Celery
 from sqlalchemy import select
 
 from app.config import get_settings
+from app.collectors import persist_payload, pull_account_payload
 from app.database import SessionLocal
 from app.models import Account, JobStatus, SyncJob
 
@@ -57,7 +58,23 @@ async def _collect_account(job_id: str) -> None:
             return
         job.status = JobStatus.RUNNING.value
         await session.commit()
-        job.status = JobStatus.PARTIAL.value
+        account = await session.scalar(select(Account).where(Account.id == job.account_id))
+        if not account or not account.collection_enabled:
+            job.status = JobStatus.FAILED.value
+            job.error_message = "Account is unavailable or collection is disabled."
+        else:
+            try:
+                payload = await pull_account_payload(account)
+                if payload is None:
+                    job.status = JobStatus.PARTIAL.value
+                    job.error_message = "No approved data-source adapter is configured."
+                else:
+                    job.records_written = await persist_payload(session, account, payload)
+                    job.status = JobStatus.SUCCEEDED.value
+                    job.error_message = None
+            except Exception as exc:
+                job.status = JobStatus.FAILED.value
+                job.error_message = f"Collection failed: {exc.__class__.__name__}"
+                account.last_sync_error = job.error_message
         job.completed_at = datetime.now(timezone.utc)
-        job.error_message = "等待已批准的数据源连接器写入必需指标"
         await session.commit()

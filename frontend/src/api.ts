@@ -22,9 +22,15 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+export async function apiDownload(path: string, filename: string): Promise<void> {
+  const response = await fetch(`${base}${path}`, { headers: { Authorization: `Bearer ${token()}` } });
+  if (!response.ok) throw new Error("导出文件下载失败");
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a"); anchor.href = url; anchor.download = filename; anchor.click(); URL.revokeObjectURL(url);
+}
+
 export const dateRange = (): { start: string; end: string } => {
   const end = new Date();
   const start = new Date(end); start.setDate(end.getDate() - 7);
   return { start: start.toISOString(), end: end.toISOString() };
 };
-

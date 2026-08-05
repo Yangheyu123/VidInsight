@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     enable_computer_use: bool = False
     enable_controlled_crawler: bool = False
     crawler_allowed_domains: str = ""
+    data_source_url: str | None = None
+    data_source_token: str | None = None
+    data_source_timeout_seconds: int = 20
 
     @property
     def cors_origins(self) -> list[str]:
@@ -31,4 +34,3 @@ def get_settings() -> Settings:
     settings = Settings()
     settings.export_dir.mkdir(parents=True, exist_ok=True)
     return settings
-
