@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
+import httpx
 from openpyxl import Workbook
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +24,7 @@ from app.models import (
     ExportJob,
     JobStatus,
     MetricRequirement,
+    OAuthState,
     Role,
     SyncJob,
     User,
@@ -30,6 +32,7 @@ from app.models import (
     VideoMetricSnapshot,
     Workspace,
 )
+from app.douyin import authorization_url, encrypt, exchange_code, expiration, new_state, state_hash
 from app.schemas import AccountCreate, AccountPatch, AccountSnapshotImport, ExportRequest, LoginRequest, VideoImport
 from app.security import create_access_token, current_user, hash_password, require_role, verify_password
 
@@ -128,6 +131,46 @@ async def login(body: LoginRequest, session: AsyncSession = Depends(get_db)) -> 
 async def me(user: User = Depends(current_user), session: AsyncSession = Depends(get_db)) -> dict:
     workspace = await get_workspace(session)
     return {"id": user.id, "email": user.email, "display_name": user.display_name, "role": user.role, "workspace_id": workspace.id}
+
+
+@app.post("/api/v1/accounts/{account_id}/authorize")
+async def authorize_douyin_account(account_id: str, session: AsyncSession = Depends(get_db), _: User = Depends(require_role(Role.ADMIN.value, Role.OPERATOR.value))) -> dict:
+    account = await get_account(session, account_id)
+    state = new_state()
+    session.add(OAuthState(account_id=account.id, state_hash=state_hash(state), expires_at=utcnow().replace(microsecond=0) + timedelta(minutes=10)))
+    await session.commit()
+    try:
+        return {"authorization_url": authorization_url(state), "expires_in": 600}
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/integrations/douyin/callback")
+async def douyin_oauth_callback(code: str, state: str, scopes: str = "", session: AsyncSession = Depends(get_db)):
+    record = await session.scalar(select(OAuthState).where(OAuthState.state_hash == state_hash(state), OAuthState.consumed_at.is_(None), OAuthState.expires_at > utcnow()))
+    if not record:
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+    account = await get_account(session, record.account_id)
+    try:
+        payload = await exchange_code(code)
+    except (RuntimeError, ValueError, httpx.HTTPError) as exc:
+        account.authorization_status = AccountStatus.EXPIRED.value
+        account.last_sync_error = f"OAuth exchange failed: {exc.__class__.__name__}"
+        await session.commit()
+        raise HTTPException(status_code=502, detail="Douyin OAuth token exchange failed") from exc
+    if payload["open_id"] != account.platform_open_id:
+        raise HTTPException(status_code=409, detail="Authorized Douyin account does not match the selected account")
+    account.access_token_encrypted = encrypt(payload["access_token"])
+    account.refresh_token_encrypted = encrypt(payload["refresh_token"])
+    account.token_expires_at = expiration(payload.get("expires_in"))
+    account.refresh_token_expires_at = expiration(payload.get("refresh_expires_in"))
+    account.authorized_scopes = scopes or payload.get("scope", "")
+    account.authorization_status = AccountStatus.ACTIVE.value
+    account.last_sync_error = None
+    record.consumed_at = utcnow()
+    await session.commit()
+    settings = get_settings()
+    return RedirectResponse(f"{settings.frontend_app_url.rstrip('/')}/accounts/{account.id}?authorized=1", status_code=303)
 
 
 @app.get("/api/v1/accounts")

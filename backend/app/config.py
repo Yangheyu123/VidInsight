@@ -23,10 +23,19 @@ class Settings(BaseSettings):
     data_source_url: str | None = None
     data_source_token: str | None = None
     data_source_timeout_seconds: int = 20
+    frontend_app_url: str = "http://localhost"
+    douyin_client_key: str | None = None
+    douyin_client_secret: str | None = None
+    douyin_redirect_uri: str | None = None
+    douyin_scopes: str = "user_info"
 
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.frontend_origins.split(",") if origin.strip()]
+
+    @property
+    def douyin_scope_list(self) -> list[str]:
+        return [scope.strip() for scope in self.douyin_scopes.split(",") if scope.strip()]
 
 
 @lru_cache
