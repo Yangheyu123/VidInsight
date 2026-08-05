@@ -5,7 +5,7 @@ from celery import Celery
 from sqlalchemy import select
 
 from app.config import get_settings
-from app.collectors import persist_payload, pull_account_payload
+from app.collectors import collect_douyin_business_video_metrics, persist_payload, pull_account_payload
 from app.database import SessionLocal
 from app.douyin import decrypt, encrypt, expiration, refresh_access_token
 from app.models import Account, JobStatus, SyncJob
@@ -97,13 +97,19 @@ async def _collect_account(job_id: str) -> None:
         else:
             try:
                 payload = await pull_account_payload(account)
-                if payload is None:
-                    job.status = JobStatus.PARTIAL.value
-                    job.error_message = "No approved data-source adapter is configured."
-                else:
+                if payload is not None:
                     job.records_written = await persist_payload(session, account, payload)
                     job.status = JobStatus.SUCCEEDED.value
                     job.error_message = None
+                else:
+                    official_written = await collect_douyin_business_video_metrics(session, account)
+                    if official_written is None:
+                        job.status = JobStatus.PARTIAL.value
+                        job.error_message = "No approved data-source adapter is configured."
+                    else:
+                        job.records_written = official_written
+                        job.status = JobStatus.PARTIAL.value
+                        job.error_message = "Official video metrics synced; completion and follow-conversion fields require an additional approved source."
             except Exception as exc:
                 job.status = JobStatus.FAILED.value
                 job.error_message = f"Collection failed: {exc.__class__.__name__}"

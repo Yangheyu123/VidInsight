@@ -42,6 +42,10 @@
 
 待补配置：`DOUYIN_CLIENT_KEY`、`DOUYIN_CLIENT_SECRET`、`DOUYIN_REDIRECT_URI`（必须为控制台登记的 HTTPS 完整回调地址）和已审批的 `DOUYIN_SCOPES`。默认 scope 仅为 `user_info`，不要在未经批准时加入数据类 scope。
 
+### 已实现的经营授权视频同步
+
+配置 `DOUYIN_BUSINESS_ACCESS_TOKEN` 后，Worker 会对已保存 `platform_item_id` 的作品调用 `POST https://open.douyin.com/api/apps/v1/video_bc/query/?open_id=...`，每批最多 20 个 item ID。系统仅映射文档中明确返回的 `play_count`、`digg_count`、`comment_count`、`share_count`、`forward_count`；快照来源为 `douyin_api`、质量等级为 B。该调用不填充完播率或视频级涨粉转化，任务和覆盖门禁会保持 `partial`，直至第二个已批准来源提供这些字段。
+
 ## 参考资料
 
 - [用户互动数据](https://developer.open-douyin.com/capacity-center-page/capacity-detail/7180284622729658424)

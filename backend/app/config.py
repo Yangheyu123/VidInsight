@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     douyin_client_secret: str | None = None
     douyin_redirect_uri: str | None = None
     douyin_scopes: str = "user_info"
+    douyin_business_access_token: str | None = None
 
     @property
     def cors_origins(self) -> list[str]:

@@ -9,7 +9,7 @@ provider's field mapping belongs; this boundary keeps the core product auditable
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import httpx
 from sqlalchemy import select
@@ -63,3 +63,47 @@ async def persist_payload(session: AsyncSession, account: Account, payload: dict
         account.last_synced_at = newest
         account.last_sync_error = None
     return writes
+
+
+BUSINESS_VIDEO_QUERY_URL = "https://open.douyin.com/api/apps/v1/video_bc/query/"
+
+
+async def collect_douyin_business_video_metrics(session: AsyncSession, account: Account) -> int | None:
+    """Append fields returned by the documented经营授权 video-query API.
+
+    The endpoint does not provide completion or follow conversion, so those remain
+    null.  Returning ``None`` signals that this adapter is not configured.
+    """
+    settings = get_settings()
+    if not settings.douyin_business_access_token:
+        return None
+    videos = (await session.scalars(select(Video).where(Video.account_id == account.id))).all()
+    if not videos:
+        return 0
+    token = settings.douyin_business_access_token
+    now = datetime.now(timezone.utc)
+    written = 0
+    async with httpx.AsyncClient(timeout=settings.data_source_timeout_seconds, follow_redirects=False) as client:
+        for offset in range(0, len(videos), 20):
+            batch = videos[offset:offset + 20]
+            response = await client.post(BUSINESS_VIDEO_QUERY_URL, params={"open_id": account.platform_open_id}, headers={"access-token": token, "content-type": "application/json"}, json={"item_ids": [video.platform_item_id for video in batch]})
+            response.raise_for_status()
+            payload = response.json()
+            if payload.get("err_no", 0) != 0:
+                raise ValueError(f"Douyin business video query failed: {payload.get('err_no')}")
+            result = payload.get("data", {}).get("data", {}).get("list", [])
+            video_by_item = {video.platform_item_id: video for video in batch}
+            for item in result:
+                video = video_by_item.get(item.get("item_id"))
+                statistics = item.get("statistics") or {}
+                if not video or not statistics:
+                    continue
+                duplicate = await session.scalar(select(VideoMetricSnapshot.id).where(VideoMetricSnapshot.video_id == video.id, VideoMetricSnapshot.collected_at == now, VideoMetricSnapshot.source == "douyin_api"))
+                if duplicate:
+                    continue
+                session.add(VideoMetricSnapshot(workspace_id=account.workspace_id, video_id=video.id, play_count=int(statistics.get("play_count", 0)), like_count=int(statistics.get("digg_count", 0)), comment_count=int(statistics.get("comment_count", 0)), share_count=int(statistics.get("share_count", 0)), forward_count=int(statistics.get("forward_count", 0)), completion_rate=None, completion_sample_count=None, video_follow_conversion=None, collected_at=now, source="douyin_api", quality="B"))
+                written += 1
+    if written:
+        account.last_synced_at = now
+        account.last_sync_error = None
+    return written
