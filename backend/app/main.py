@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+import json
 from pathlib import Path
+import secrets
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 import httpx
@@ -13,6 +15,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.creator_ingest import infer_account, parse_creator_event
 from app.database import SessionLocal, create_schema, get_db
 from app.diagnosis import build_diagnoses
 from app.models import (
@@ -26,6 +29,7 @@ from app.models import (
     MetricRequirement,
     OAuthState,
     Role,
+    SourceEvent,
     SyncJob,
     User,
     Video,
@@ -33,7 +37,7 @@ from app.models import (
     Workspace,
 )
 from app.douyin import authorization_url, encrypt, exchange_code, expiration, new_state, state_hash
-from app.schemas import AccountCreate, AccountDataImport, AccountPatch, AccountSnapshotImport, ExportRequest, LoginRequest, VideoImport
+from app.schemas import AccountCreate, AccountDataImport, AccountPatch, AccountSnapshotImport, CreatorDataIngest, ExportRequest, LoginRequest, VideoImport
 from app.security import create_access_token, current_user, hash_password, require_role, verify_password
 
 REQUIRED_METRICS = {
@@ -147,9 +151,52 @@ async def douyin_preflight(_: User = Depends(require_role(Role.ADMIN.value, Role
         "configured": configured,
         "requested_scopes": settings.douyin_scope_list,
         "missing": [name for name in required if not configured[name]],
-        "field_gaps": ["completion_rate", "video_follow_conversion"],
-        "notes": ["Official video query supports play/like/comment/share/forward only with an approved capability and known item_id.", "Do not enable production collection until the approved scope, use case, quota, and field samples have been recorded."],
+        "field_gaps": ["follower_delta", "completion_rate", "video_follow_conversion"],
+        "notes": ["The OAuth video.list collector discovers videos and writes play/like/comment/share/forward after video.list is approved.", "Do not enable production collection until the approved scope, use case, quota, and field samples have been recorded."],
     }
+
+
+@app.get("/api/v1/integrations/sources/preflight")
+async def source_preflight(_: User = Depends(require_role(Role.ADMIN.value, Role.OPERATOR.value))) -> dict:
+    """Return safe readiness information without leaking worker tokens or URLs."""
+    settings = get_settings()
+    return {
+        "priority": ["contract_api", "douyin_oauth", "computer_use", "controlled_crawler"],
+        "contract_api": {"configured": bool(settings.data_source_url), "full_metric_contract_required": True},
+        "douyin_oauth": {"configured": bool(settings.douyin_client_key and settings.douyin_client_secret and settings.douyin_redirect_uri), "required_scope": "video.list", "field_gaps": ["follower_delta", "completion_rate", "video_follow_conversion"]},
+        "computer_use": {"enabled": settings.enable_computer_use, "bridge_configured": bool(settings.computer_use_source_url or settings.computer_use_ingest_token), "collector_receiver_configured": bool(settings.computer_use_ingest_token), "policy": "Use only an account-owner-authorised dashboard worker; no passwords, cookies, CAPTCHA bypass or proxy pools are accepted by VidInsight."},
+        "controlled_crawler": {"enabled": settings.enable_controlled_crawler, "bridge_configured": bool(settings.controlled_crawler_source_url), "allowlist_configured": bool(settings.crawler_domain_list), "policy": "Allowed only for domains explicitly approved in CRAWLER_ALLOWED_DOMAINS and only through an HTTPS contract bridge."},
+    }
+
+
+@app.post("/api/self-data/ingest")
+async def ingest_creator_data(body: CreatorDataIngest, x_ingest_token: str | None = Header(default=None), session: AsyncSession = Depends(get_db)) -> dict:
+    """Receive an approved first-party Creator Center capture event.
+
+    This endpoint intentionally uses a separate ingestion token because browser
+    extensions cannot attach an internal user's bearer token. It accepts no
+    platform credentials and persists the original response for audit/mapping.
+    """
+    settings = get_settings()
+    if not settings.enable_computer_use or not settings.computer_use_ingest_token:
+        raise HTTPException(status_code=503, detail="Computer Use collector receiver is not enabled")
+    if not x_ingest_token or not secrets.compare_digest(x_ingest_token, settings.computer_use_ingest_token):
+        raise HTTPException(status_code=403, detail="Invalid ingestion token")
+    try:
+        raw = json.loads(body.payload)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=422, detail="Collector payload must be JSON") from exc
+    if not isinstance(raw, (dict, list)):
+        raise HTTPException(status_code=422, detail="Collector payload must be a JSON object or array")
+    account = await infer_account(session, raw, body.account_id or settings.computer_use_default_account_id)
+    if not account:
+        raise HTTPException(status_code=422, detail="Unable to map the event to an account. Set COMPUTER_USE_DEFAULT_ACCOUNT_ID or include account_id in the bridge payload.")
+    event = SourceEvent(workspace_id=account.workspace_id, account_id=account.id, source="computer_use", kind=body.kind, source_url=body.source_url, payload=raw, captured_at=body.captured_at)
+    session.add(event)
+    await session.flush()
+    written = await parse_creator_event(session, account, event)
+    await session.commit()
+    return {"saved": written, "parsed": written, "event_id": event.id, "parse_status": event.parse_status, "account_id": account.id}
 
 
 @app.post("/api/v1/accounts/{account_id}/authorize")

@@ -125,6 +125,22 @@ class VideoMetricSnapshot(Base):
     video: Mapped[Video] = relationship(back_populates="metrics")
 
 
+class SourceEvent(Base):
+    """Append-only raw event from an approved first-party collection bridge."""
+    __tablename__ = "source_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"), index=True)
+    source: Mapped[str] = mapped_column(String(30))
+    kind: Mapped[str] = mapped_column(String(80))
+    source_url: Mapped[str] = mapped_column(Text)
+    payload: Mapped[dict | list] = mapped_column(JSON)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    parse_status: Mapped[str] = mapped_column(String(30), default="received")
+    parse_details: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
 class Diagnosis(Base):
     __tablename__ = "diagnoses"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)

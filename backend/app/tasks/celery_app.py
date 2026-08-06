@@ -5,7 +5,7 @@ from celery import Celery
 from sqlalchemy import select
 
 from app.config import get_settings
-from app.collectors import collect_douyin_business_video_metrics, persist_payload, pull_account_payload
+from app.collectors import collect_douyin_authorized_video_metrics, collect_douyin_business_video_metrics, persist_payload, pull_account_payload
 from app.database import SessionLocal
 from app.douyin import decrypt, encrypt, expiration, refresh_access_token
 from app.models import Account, JobStatus, SyncJob
@@ -96,20 +96,35 @@ async def _collect_account(job_id: str) -> None:
             job.error_message = "Account is unavailable or collection is disabled."
         else:
             try:
+                # Priority follows the configured, approved source of record. A
+                # Computer Use/crawler worker is opt-in and cannot run until its
+                # own HTTPS bridge and authorisation have been provisioned.
                 payload = await pull_account_payload(account)
                 if payload is not None:
                     job.records_written = await persist_payload(session, account, payload)
                     job.status = JobStatus.SUCCEEDED.value
                     job.error_message = None
                 else:
-                    official_written = await collect_douyin_business_video_metrics(session, account)
+                    official_written = await collect_douyin_authorized_video_metrics(session, account)
                     if official_written is None:
-                        job.status = JobStatus.PARTIAL.value
-                        job.error_message = "No approved data-source adapter is configured."
-                    else:
+                        official_written = await collect_douyin_business_video_metrics(session, account)
+                    if official_written is not None:
                         job.records_written = official_written
                         job.status = JobStatus.PARTIAL.value
-                        job.error_message = "Official video metrics synced; completion and follow-conversion fields require an additional approved source."
+                        job.error_message = "Official video metrics synced; follower growth, completion and follow-conversion require an approved full-metric source."
+                    elif settings.enable_computer_use and settings.computer_use_source_url:
+                        payload = await pull_account_payload(account, settings.computer_use_source_url, settings.computer_use_source_token, source="computer_use")
+                        job.records_written = await persist_payload(session, account, payload or {})
+                        job.status = JobStatus.SUCCEEDED.value
+                        job.error_message = None
+                    elif settings.enable_controlled_crawler and settings.controlled_crawler_source_url:
+                        payload = await pull_account_payload(account, settings.controlled_crawler_source_url, settings.controlled_crawler_source_token, source="controlled_crawler", require_crawler_allowlist=True)
+                        job.records_written = await persist_payload(session, account, payload or {})
+                        job.status = JobStatus.SUCCEEDED.value
+                        job.error_message = None
+                    else:
+                        job.status = JobStatus.PARTIAL.value
+                        job.error_message = "No approved data-source adapter is configured."
             except Exception as exc:
                 job.status = JobStatus.FAILED.value
                 job.error_message = f"Collection failed: {exc.__class__.__name__}"

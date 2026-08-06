@@ -10,29 +10,59 @@ provider's field mapping belongs; this boundary keeps the core product auditable
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_settings
+from app.config import Settings, get_settings
+from app.douyin import decrypt
 from app.models import Account, AccountMetricSnapshot, Video, VideoMetricSnapshot
 from app.schemas import AccountSnapshotImport, VideoImport
 
 
-async def pull_account_payload(account: Account) -> dict | None:
+def _validated_base_url(base_url: str, settings: Settings, *, require_crawler_allowlist: bool = False) -> str:
+    parsed = urlparse(base_url)
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise ValueError("Approved data sources must use an HTTPS URL")
+    if require_crawler_allowlist and parsed.hostname.lower() not in settings.crawler_domain_list:
+        raise ValueError("Crawler source host is not in CRAWLER_ALLOWED_DOMAINS")
+    return base_url.rstrip("/")
+
+
+async def pull_account_payload(account: Account, base_url: str | None = None, token: str | None = None, *, source: str = "contract_api", require_crawler_allowlist: bool = False) -> dict | None:
+    """Pull one validated contract payload from an organisation-approved worker.
+
+    Computer Use and crawler workers are deliberately external bridges: this API
+    never receives a platform password, cookie, CAPTCHA response, or proxy pool.
+    They must return the same append-only import contract as a licensed provider.
+    """
     settings = get_settings()
-    if not settings.data_source_url:
+    base_url = base_url or settings.data_source_url
+    token = token if token is not None else settings.data_source_token
+    if not base_url:
         return None
-    url = f"{settings.data_source_url.rstrip('/')}/accounts/{account.platform_open_id}/metrics"
-    headers = {"Authorization": f"Bearer {settings.data_source_token}"} if settings.data_source_token else {}
+    url = f"{_validated_base_url(base_url, settings, require_crawler_allowlist=require_crawler_allowlist)}/accounts/{account.platform_open_id}/metrics"
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     async with httpx.AsyncClient(timeout=settings.data_source_timeout_seconds, follow_redirects=False) as client:
         response = await client.get(url, headers=headers)
         response.raise_for_status()
         payload = response.json()
     if not isinstance(payload, dict):
         raise ValueError("Data-source response must be a JSON object")
+    _force_payload_source(payload, source)
     return payload
+
+
+def _force_payload_source(payload: dict, source: str) -> None:
+    """Make provenance server-controlled rather than trusting a worker payload."""
+    account_snapshot = payload.get("account_snapshot")
+    if isinstance(account_snapshot, dict):
+        account_snapshot["source"] = source
+    for video in payload.get("videos", []):
+        if isinstance(video, dict):
+            video["source"] = source
 
 
 async def persist_payload(session: AsyncSession, account: Account, payload: dict) -> int:
@@ -66,6 +96,51 @@ async def persist_payload(session: AsyncSession, account: Account, payload: dict
 
 
 BUSINESS_VIDEO_QUERY_URL = "https://open.douyin.com/api/apps/v1/video_bc/query/"
+DOUYIN_VIDEO_LIST_URL = "https://open.douyin.com/video/list/"
+
+
+async def collect_douyin_authorized_video_metrics(session: AsyncSession, account: Account) -> int | None:
+    """Collect real-time public video metrics using the account's OAuth token.
+
+    This is the standard path after the application has been granted
+    ``video.list``.  Douyin does not expose completion rate or video-level follow
+    conversion from this endpoint; those remain null rather than fabricated.
+    """
+    if not account.access_token_encrypted or account.authorization_status != "active":
+        return None
+    now = datetime.now(timezone.utc)
+    written = 0
+    try:
+        token = decrypt(account.access_token_encrypted)
+    except ValueError as exc:
+        raise ValueError("Stored Douyin token cannot be decrypted") from exc
+    async with httpx.AsyncClient(timeout=get_settings().data_source_timeout_seconds, follow_redirects=False) as client:
+        response = await client.get(DOUYIN_VIDEO_LIST_URL, headers={"access-token": token, "content-type": "application/json"})
+        response.raise_for_status()
+        payload = response.json()
+    data = payload.get("data") or {}
+    if data.get("error_code", 0) != 0 or payload.get("extra", {}).get("error_code", 0) != 0:
+        raise ValueError(f"Douyin video list failed: {data.get('error_code') or payload.get('extra', {}).get('error_code')}")
+    for item in data.get("list", []):
+        item_id = item.get("item_id")
+        statistics = item.get("statistics") or {}
+        if not item_id or not statistics:
+            continue
+        published_at = datetime.fromtimestamp(int(item.get("create_time") or now.timestamp()), tz=timezone.utc)
+        video = await session.scalar(select(Video).where(Video.account_id == account.id, Video.platform_item_id == item_id))
+        if not video:
+            video = Video(workspace_id=account.workspace_id, account_id=account.id, platform_item_id=item_id, title=item.get("title") or "Untitled Douyin video", published_at=published_at, cover_url=item.get("cover"))
+            session.add(video)
+            await session.flush()
+        duplicate = await session.scalar(select(VideoMetricSnapshot.id).where(VideoMetricSnapshot.video_id == video.id, VideoMetricSnapshot.collected_at == now, VideoMetricSnapshot.source == "douyin_api"))
+        if duplicate:
+            continue
+        session.add(VideoMetricSnapshot(workspace_id=account.workspace_id, video_id=video.id, play_count=int(statistics.get("play_count", 0)), like_count=int(statistics.get("digg_count", 0)), comment_count=int(statistics.get("comment_count", 0)), share_count=int(statistics.get("share_count", 0)), forward_count=int(statistics.get("forward_count", 0)), completion_rate=None, completion_sample_count=None, video_follow_conversion=None, collected_at=now, source="douyin_api", quality="A"))
+        written += 1
+    if written:
+        account.last_synced_at = now
+        account.last_sync_error = None
+    return written
 
 
 async def collect_douyin_business_video_metrics(session: AsyncSession, account: Account) -> int | None:

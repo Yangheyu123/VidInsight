@@ -55,3 +55,13 @@ class ExportRequest(BaseModel):
 class AccountDataImport(BaseModel):
     account_snapshot: AccountSnapshotImport | None = None
     videos: list[VideoImport] = Field(default_factory=list, max_length=500)
+
+
+class CreatorDataIngest(BaseModel):
+    """Compatible with the first-party creator-data collector's POST shape."""
+    account_id: str | None = Field(default=None, max_length=36)
+    kind: str = Field(default="data", min_length=1, max_length=80)
+    source: str = Field(default="creator", min_length=1, max_length=80)
+    source_url: str = Field(min_length=1, max_length=2000)
+    payload: str = Field(min_length=2, max_length=200000)
+    captured_at: datetime

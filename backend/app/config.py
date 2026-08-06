@@ -22,12 +22,18 @@ class Settings(BaseSettings):
     crawler_allowed_domains: str = ""
     data_source_url: str | None = None
     data_source_token: str | None = None
+    computer_use_source_url: str | None = None
+    computer_use_source_token: str | None = None
+    computer_use_ingest_token: str | None = None
+    computer_use_default_account_id: str | None = None
+    controlled_crawler_source_url: str | None = None
+    controlled_crawler_source_token: str | None = None
     data_source_timeout_seconds: int = 20
     frontend_app_url: str = "http://localhost"
     douyin_client_key: str | None = None
     douyin_client_secret: str | None = None
     douyin_redirect_uri: str | None = None
-    douyin_scopes: str = "user_info"
+    douyin_scopes: str = "user_info,video.list"
     douyin_business_access_token: str | None = None
 
     @property
@@ -37,6 +43,10 @@ class Settings(BaseSettings):
     @property
     def douyin_scope_list(self) -> list[str]:
         return [scope.strip() for scope in self.douyin_scopes.split(",") if scope.strip()]
+
+    @property
+    def crawler_domain_list(self) -> list[str]:
+        return [domain.strip().lower() for domain in self.crawler_allowed_domains.split(",") if domain.strip()]
 
 
 @lru_cache
