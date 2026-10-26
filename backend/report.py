@@ -32,9 +32,9 @@ SECTIONS = [
 
 JSON_INSTRUCTION = """最后另起一段输出模板沉淀(供系统解析,格式严格如下):
 ```json
-{"templates": [{"id": "{prefix}1", "name": "模板名", "hook": "钩子一句话", "structure": "结构一句话", "accent": "develop", "stats": {"videos": 4, "avgViews": 10000, "avgCompletion": 0.35, "avg5s": 0.6, "avgFavRate": 0.05}}]}
+{"templates": [{"id": "{prefix}1", "name": "模板名", "hook": "钩子一句话", "structure": "结构一句话", "accent": "develop", "examples": ["标题片段1", "标题片段2"], "stats": {"videos": 4, "avgViews": 10000, "avgCompletion": 0.35, "avg5s": 0.6, "avgFavRate": 0.05}}]}
 ```
-要求:最多 3 个模板;stats 必须按你归类的作品真实数据计算均值;accent 三选一:develop/preview/ship。"""
+要求:最多 3 个模板;examples=你归入该模板的作品标题原文片段(用于系统回写关联);stats 必须按你归类的作品真实数据计算均值;accent 三选一:develop/preview/ship。"""
 
 BENCH_SECTIONS = [
     "1. 对标爆款概况(哪些爆了,数据说话)",
@@ -48,10 +48,30 @@ BENCH_SECTIONS = [
 
 
 def _video_lines(scope: str = "own") -> tuple[str, dict]:
+    """窗口化取数(防 prompt 随作品数线性膨胀):
+    own:  近 30 天全量 + 更早的按播放 Top10(历史爆款参照)
+    bench: 按播放 Top20
+    """
     where = "is_own=1" if scope == "own" else "is_own=0"
-    rows = db.conn().execute(
-        f"SELECT * FROM videos WHERE {where} ORDER BY views DESC"
-    ).fetchall()
+    cap = 0
+    if scope == "own":
+        from datetime import timedelta
+
+        cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+        rows = db.conn().execute(
+            f"""SELECT * FROM videos WHERE {where}
+                ORDER BY CASE WHEN date(substr(publish_time,1,10)) >= date('{cutoff}') THEN 0 ELSE 1 END,
+                         views DESC"""
+        ).fetchall()
+        recent = [r for r in rows if (r["publish_time"] or "")[:10] >= cutoff]
+        older = [r for r in rows if (r["publish_time"] or "")[:10] < cutoff][:10]
+        rows = recent + older
+        window_note = f"(近30天 {len(recent)} 条全量 + 历史 Top{len(older)} 爆款参照)"
+    else:
+        rows = db.conn().execute(
+            f"SELECT * FROM videos WHERE {where} ORDER BY views DESC LIMIT 20"
+        ).fetchall()
+        window_note = f"(对标库播放 Top{len(rows)})"
     lines = []
     bench_mean = 0
     if scope == "bench":
@@ -81,6 +101,7 @@ def _video_lines(scope: str = "own") -> tuple[str, dict]:
     views = [v["views"] or 0 for v in vids]
     mean = sum(views) / len(views) if views else 0
     stats = {
+        "window": window_note,
         "count": len(vids),
         "mean_views": round(mean),
         "viral_line": round(mean * 3),
@@ -134,6 +155,7 @@ def _parse_templates(md: str) -> list[dict]:
                     "hook": str(t.get("hook") or "")[:120],
                     "structure_md": str(t.get("structure") or "")[:300],
                     "accent": t.get("accent") if t.get("accent") in ("develop", "preview", "ship") else "develop",
+                    "examples": [str(e)[:20] for e in (t.get("examples") or [])[:4]],
                     "stats": {
                         "videos": int(stats.get("videos") or 0),
                         "avgViews": int(stats.get("avgViews") or 0),
@@ -246,7 +268,7 @@ def generate(scope: str = "own") -> dict:
     )
     report_id = cur.lastrowid
 
-    # 模板沉淀:LLM 版替换式重建(报告是模板的唯一来源);规则版不动旧模板
+    # 模板沉淀:LLM 版替换式重建 + 作品关联回写(模板stats从此由真实数据持续累计)
     saved = []
     if engine == "llm":
         saved = _parse_templates(md)
@@ -261,6 +283,20 @@ def generate(scope: str = "own") -> dict:
                         report_id, json.dumps(t["stats"], ensure_ascii=False), now,
                     ),
                 )
+            # 回写:examples 片段 ↔ 自有作品标题 归一互含匹配
+            import re as _re
+
+            def _n(s: str) -> str:
+                return _re.sub(r"[^\w\u4e00-\u9fff]+", "", s or "").lower()
+
+            c.execute("UPDATE videos SET template_id=NULL WHERE is_own=1")
+            for t in saved:
+                for v in c.execute("SELECT video_id, title FROM videos WHERE is_own=1").fetchall():
+                    vt = _n(v["title"])
+                    if any((e := _n(ex)) and (e in vt or vt in e) for ex in t["examples"]):
+                        c.execute(
+                            "UPDATE videos SET template_id=? WHERE video_id=?", (t["id"], v["video_id"])
+                        )
     c.commit()
     # 报告落库 → 自动刷新产线创作简报(提示词随之更新)
     try:

@@ -38,6 +38,29 @@ def _mark_next(sid: str, interval_minutes: int) -> None:
 
 def tick() -> None:
     db.init_db()
+
+    # ---- P0 备份:每日滚动备份 platform.db(保留 7 份) ----
+    try:
+        import shutil
+        import sqlite3
+
+        backup_dir = ROOT / "data" / "backup"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d")
+        dest = backup_dir / f"platform-{stamp}.db"
+        if not dest.exists():
+            src = sqlite3.connect(ROOT / "data" / "platform.db")
+            dst = sqlite3.connect(dest)
+            src.backup(dst)
+            dst.close()
+            src.close()
+        olds = sorted(backup_dir.glob("platform-*.db"))
+        for old in olds[:-7]:
+            old.unlink(missing_ok=True)
+        print(f"[tick] 备份 OK:{dest.name}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[tick] 备份失败:{e}")
+
     now = datetime.now(tz=ZoneInfo(BJ_TZ))
     _ensure_source("douyin_self", "抖音自数据(douyin-mcp)", "douyin_self", 1440)
     _ensure_source("materials_hub", "素材引擎(知乎/微博/一言)", "materials", 1440)
@@ -91,6 +114,8 @@ def tick() -> None:
             from . import scripts_ingest
             r = scripts_ingest.ingest_bench_scripts(limit=3)
             print(f"[tick] 脚本管线完成:{r}")
+            cr = scripts_ingest.ingest_bench_comments(limit_videos=2)
+            print(f"[tick] 爆款评论:{cr}")
         except Exception as e:  # noqa: BLE001
             print(f"[tick] 脚本管线失败:{e}")
         _mark_next("bench_scripts", 10080)
@@ -122,16 +147,24 @@ def tick() -> None:
             pass
         _mark_next("radar_bench", 10080)
 
-    # 告警标记(P1 用文件标记,推送通道接入后替换为真实推送)
+    # 告警:failing → 本地标记 + 推送(每日一次去重);恢复清理标记
+    from . import notify as _notify
+
     failing = db.conn().execute(
         "SELECT id, last_error FROM sources WHERE health='failing'"
     ).fetchall()
     flag = ROOT / "data" / "alert.flag"
     if failing:
-        flag.write_text(
-            "\n".join(f"{r['id']}: {r['last_error']}" for r in failing), encoding="utf-8"
-        )
-        print(f"[tick] 告警:{len(failing)} 个源 failing,已写 {flag.name}")
+        detail = "\n".join(f"{r['id']}: {(r['last_error'] or '')[:80]}" for r in failing)
+        try:
+            flag.write_text(detail, encoding="utf-8")
+        except OSError:
+            pass
+        print(f"[tick] 告警:{len(failing)} 个源 failing")
+        if _notify.configured():
+            _notify.maybe_notify_once_per_day("VidInsight 告警", f"{len(failing)} 个采集源失败:\n{detail}")
+        else:
+            print("[tick] 通知未配置(.env 加 SERVERCHAN_KEY 或 FEISHU_WEBHOOK 即推送)")
     elif flag.exists():
         flag.unlink()
         print("[tick] 全部恢复,告警标记已清除")
