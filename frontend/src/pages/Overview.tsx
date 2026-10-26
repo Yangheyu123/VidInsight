@@ -1,0 +1,281 @@
+/* ============================================================
+   总览页:hero(唯一的 mesh 渐变出现处)+ 五指标卡
+   + 播放/涨粉趋势 + 完播率曲线 + 近期作品速览 + 数据链路状态
+   ============================================================ */
+import { useEffect, useMemo, useState } from 'react'
+import {
+  Area,
+  AreaChart,
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import { Card, SectionHeader } from '../components/Card'
+import { MetricCard } from '../components/MetricCard'
+import { ViralBadge } from '../components/Buttons'
+import { axisProps, ChartTooltip, gridProps, INK, LINK } from '../components/charts'
+import { fmtDate, fmtNum, fmtPct } from '../data/format'
+import { isViral } from '../data/stats'
+import type { DailyStat, Video } from '../types'
+import { getSource } from '../data/source'
+
+const RANGES = [7, 30, 90] as const
+
+/** 区间对比:当前窗口合计 vs 上一窗口合计 → 环比 */
+function deltaOf(cur: number[], prev: number[]): number | null {
+  const c = cur.reduce((s, x) => s + x, 0)
+  const p = prev.reduce((s, x) => s + x, 0)
+  return p > 0 ? (c - p) / p : null
+}
+
+export function Overview() {
+  const [days, setDays] = useState<(typeof RANGES)[number]>(30)
+  const [daily, setDaily] = useState<DailyStat[]>([])
+  const [videos, setVideos] = useState<Video[]>([])
+
+  useEffect(() => {
+    void (async () => {
+      const ds = await getSource()
+      setDaily(await ds.dailyStats(days))
+      setVideos(await ds.videos())
+    })()
+  }, [days])
+
+  // 指标:来自作品层(完播/5s/收藏率)与逐日层(播放/涨粉)
+  const stats = useMemo(() => {
+    const cur = daily
+    const firstHalf = cur.slice(0, Math.floor(cur.length / 2))
+    const latterHalf = cur.slice(Math.floor(cur.length / 2))
+    const own = videos.filter((v) => v.isOwn)
+    const recent = own.filter(
+      (v) => Date.now() - new Date(v.publishTime).getTime() <= days * 86_400_000,
+    )
+    const avg = (xs: (number | null)[]) =>
+      xs.filter((x): x is number => x != null).reduce((s, x) => s + x, 0) / (xs.length || 1)
+    return {
+      plays: cur.reduce((s, d) => s + d.plays, 0),
+      playsDelta: deltaOf(
+        latterHalf.map((d) => d.plays),
+        firstHalf.map((d) => d.plays),
+      ),
+      followers: cur.reduce((s, d) => s + d.newFollowers, 0),
+      followersDelta: deltaOf(
+        latterHalf.map((d) => d.newFollowers),
+        firstHalf.map((d) => d.newFollowers),
+      ),
+      completion: avg(recent.map((v) => v.completionRate)),
+      completion5s: avg(recent.map((v) => v.completion5sRate)),
+      skip2s: avg(recent.map((v) => v.skip2sRate ?? null)),
+      favRate: avg(
+        recent.map((v) => (v.views ? v.favorites / v.views : null)),
+      ),
+    }
+  }, [daily, videos, days])
+
+  const topVideos = useMemo(
+    () => [...videos].sort((a, b) => b.views - a.views).slice(0, 5),
+    [videos],
+  )
+
+  const chartData = daily.map((d) => ({
+    ...d,
+    label: d.date.slice(5).replace('-', '/'),
+  }))
+
+  return (
+    <div>
+      {/* ---- hero band:白画布 + mesh 渐变(全站唯一装饰) ---- */}
+      <section className="relative overflow-hidden border-b border-hairline">
+        <div className="mesh-bloom -top-24 right-0 h-80 w-[620px] rotate-6" aria-hidden />
+        <div className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-6 px-4 py-14 sm:px-6 sm:py-16">
+          <div>
+            <div className="eyebrow">Douyin Ops</div>
+            <h1 className="mt-2 text-heading-lg text-ink">总览</h1>
+            <p className="mt-3 text-body-md text-mute">青年思辨哲学 · 18–23 男性 · 核心指标 收藏率</p>
+          </div>
+          <div className="flex rounded-square border border-hairline bg-elevated p-0.5">
+            {RANGES.map((r) => (
+              <button
+                key={r}
+                onClick={() => setDays(r)}
+                className={`h-8 rounded-[4px] px-3.5 font-mono text-[13px] transition-colors ${
+                  days === r ? 'bg-primary text-white' : 'text-body hover:text-ink'
+                }`}
+              >
+                {r}D
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="mx-auto max-w-6xl space-y-8 px-4 py-10 sm:px-6">
+        {/* 无数据空态(真实模式下后端未连接/库为空;绝不显示模拟数字) */}
+        {videos.length === 0 ? (
+          <Card>
+            <div className="eyebrow">No Data</div>
+            <h2 className="mt-1 text-heading-md text-ink">暂无作品数据</h2>
+            <p className="mt-2 text-body-md text-body">
+              后端未连接或统一库为空。启动后端并触发一次同步:
+            </p>
+            <code className="mt-3 inline-block rounded-square border border-hairline bg-canvas px-3 py-1.5 font-mono text-[13px] text-body">
+              .venv\Scripts\python -m uvicorn backend.api:app --port 8787
+            </code>
+            <p className="mt-3 text-body-sm text-mute">
+              想预览界面效果?页脚「切换演示数据」可显式开启虚构样例(带全站横幅标识)。
+            </p>
+          </Card>
+        ) : (
+          <>
+        {/* ---- 六指标卡 ---- */}
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+          <MetricCard label="播放量" value={fmtNum(stats.plays)} delta={stats.playsDelta} sub={`${days} 天`} />
+          <MetricCard label="完播率" value={fmtPct(stats.completion)} />
+          <MetricCard label="5s完播" value={fmtPct(stats.completion5s)} />
+          <MetricCard label="2秒跳出" value={fmtPct(stats.skip2s)} />
+          <MetricCard label="收藏率" value={fmtPct(stats.favRate)} highlight />
+          <MetricCard label="涨粉" value={fmtNum(stats.followers)} delta={stats.followersDelta} sub={`${days} 天`} />
+        </div>
+
+        {/* ---- 播放/涨粉趋势 ---- */}
+        <Card padded={false}>
+          <div className="px-8 pt-8">
+            <SectionHeader eyebrow="Trend" title="播放与涨粉" />
+          </div>
+          <div className="h-80 px-2 pb-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} margin={{ top: 4, right: 16, bottom: 0, left: 8 }}>
+                <CartesianGrid {...gridProps} />
+                <XAxis dataKey="label" {...axisProps} />
+                <YAxis
+                  yAxisId="left"
+                  {...axisProps}
+                  tickFormatter={(v: number) => (v >= 10000 ? `${v / 10000}万` : `${v}`)}
+                  width={52}
+                />
+                <YAxis yAxisId="right" orientation="right" {...axisProps} width={36} />
+                <Tooltip
+                  cursor={{ fill: '#f2f2f2' }}
+                  content={({ active, payload, label }) =>
+                    active && payload?.length ? (
+                      <ChartTooltip
+                        title={label as string}
+                        rows={[
+                          { label: '播放', value: fmtNum(payload[0]?.payload.plays), color: INK },
+                          {
+                            label: '涨粉',
+                            value: `+${payload[0]?.payload.newFollowers ?? 0}`,
+                            color: LINK,
+                          },
+                          {
+                            label: '完播',
+                            value: fmtPct(payload[0]?.payload.avgCompletion),
+                          },
+                        ]}
+                      />
+                    ) : null
+                  }
+                />
+                <Bar yAxisId="left" dataKey="plays" fill={INK} radius={[3, 3, 0, 0]} maxBarSize={26} />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="newFollowers"
+                  stroke={LINK}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 3, fill: LINK, strokeWidth: 0 }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        {/* ---- 完播率曲线 + 近期作品速览 ---- */}
+        <div className="grid gap-6 lg:grid-cols-5">
+          <Card className="lg:col-span-3" padded={false}>
+            <div className="px-8 pt-8">
+              <SectionHeader eyebrow="Retention" title="完播率" />
+            </div>
+            <div className="h-64 px-2 pb-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 4, right: 16, bottom: 0, left: 8 }}>
+                  <defs>
+                    <linearGradient id="compFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={LINK} stopOpacity={0.25} />
+                      <stop offset="100%" stopColor={LINK} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid {...gridProps} />
+                  <XAxis dataKey="label" {...axisProps} />
+                  <YAxis
+                    {...axisProps}
+                    domain={['auto', 'auto']}
+                    tickFormatter={(v: number) => `${(v * 100).toFixed(1)}%`}
+                    width={52}
+                  />
+                  <Tooltip
+                    cursor={{ stroke: '#ebebeb' }}
+                    content={({ active, payload, label }) =>
+                      active && payload?.length ? (
+                        <ChartTooltip
+                          title={label as string}
+                          rows={[
+                            {
+                              label: '平均完播率',
+                              value: fmtPct(payload[0]?.payload.avgCompletion),
+                              color: LINK,
+                            },
+                          ]}
+                        />
+                      ) : null
+                    }
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="avgCompletion"
+                    stroke={LINK}
+                    strokeWidth={2}
+                    fill="url(#compFill)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
+          <Card className="lg:col-span-2" padded={false}>
+            <div className="px-8 pt-8">
+              <SectionHeader eyebrow="Top 5" title="作品" />
+            </div>
+            <div className="divide-y divide-hairline">
+              {topVideos.map((v) => (
+                <div key={v.videoId} className="flex items-center gap-3 px-8 py-3.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-body-md text-ink">{v.title}</span>
+                      {isViral(v, videos) && <ViralBadge />}
+                    </div>
+                    <div className="mt-0.5 font-mono text-[13px] text-mute">
+                      {fmtDate(v.publishTime)} · {fmtNum(v.views)}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-mono text-[15px] text-ink">{fmtPct(v.views ? v.favorites / v.views : null)}</div>
+                    <div className="text-body-sm text-mute">收藏率</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}

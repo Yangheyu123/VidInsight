@@ -1,0 +1,25 @@
+# ===== 敏感与本地配置(绝不入库) =====
+.env
+data/
+*.db
+*.sqlite
+alert.flag
+.llm_unavailable
+
+# ===== Python =====
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# ===== 前端 =====
+frontend/node_modules/
+frontend/dist/
+
+# ===== 外部依赖(按 README 单独 clone,不入库) =====
+vendors/
+
+# ===== 系统杂项 =====
+.DS_Store
+Thumbs.db
+*.log

@@ -1,0 +1,217 @@
+/* ============================================================
+   抖音运营中台 · 设计 token 层
+   来源:根目录 DESIGN.md(Vercel Geist 设计系统分析)
+   原则:token 数值与 DESIGN.md 一一对应,不自创颜色
+   ============================================================ */
+@import 'tailwindcss';
+
+@theme {
+  /* ---- 色彩(colors) ---- */
+  --color-primary: #171717; /* 品牌黑:标题/主CTA */
+  --color-ink: #171717; /* 最深文字层 */
+  --color-body: #4d4d4d; /* 正文/次级 */
+  --color-mute: #8f8f8f; /* 说明/元数据 */
+  --color-faint: #a1a1a1; /* 占位/禁用 */
+  --color-hairline: #ebebeb; /* 1px 发丝线(结构主力) */
+  --color-hairline-soft: #f2f2f2; /* 更浅底纹/行悬浮 */
+  --color-canvas: #fafafa; /* 页面画布 */
+  --color-elevated: #ffffff; /* 卡片/输入框抬升面 */
+  --color-link: #0070f3; /* 链接/焦点/正向信号 */
+  --color-link-deep: #0761d1;
+  --color-link-soft: #d3e5ff;
+  --color-error: #ee0000;
+  --color-error-deep: #c50000;
+  --color-warning: #f5a623;
+  --color-warning-soft: #ffefcf;
+  --color-warning-deep: #ab570a;
+  --color-violet: #7928ca;
+  --color-violet-soft: #d8ccf1;
+  --color-cyan: #50e3c2;
+  --color-cyan-soft: #aaffec;
+  --color-pink: #ff0080;
+  --color-magenta: #eb367f;
+  /* 渐变三件套(仅用于 hero 与数据系列强调) */
+  --color-grad-develop-start: #007cf0;
+  --color-grad-develop-end: #00dfd8;
+  --color-grad-preview-start: #7928ca;
+  --color-grad-preview-end: #ff0080;
+  --color-grad-ship-start: #ff4d4d;
+  --color-grad-ship-end: #f9cb28;
+
+  /* ---- 字体(Geist Sans / Geist Mono,缺失时 Inter/Arial 兜底) ---- */
+  --font-sans: 'Geist Sans', Inter, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ---- 圆角(rounded 双语言:方角=功能,胶囊=营销,12-16=内容卡) ---- */
+  --radius-square: 6px; /* 导航/应用按钮、输入框 */
+  --radius-card: 12px; /* 功能卡、代码块 */
+  --radius-panel: 16px; /* 大面板/定价级卡片 */
+
+  /* ---- 阴影(elevation:发丝线优先,阴影克制) ---- */
+  --shadow-whisper: 0 1px 1px rgba(0, 0, 0, 0.04); /* L1 微升 */
+  --shadow-float:
+    0 2px 2px rgba(0, 0, 0, 0.02), 0 8px 16px -4px rgba(0, 0, 0, 0.08); /* L2 悬浮:菜单/抽屉 */
+
+  /* ---- 字阶(typography,负字距只在 display/heading;V1.1 全站放大一档) ---- */
+  --text-display-xl: 56px;
+  --text-display-xl--line-height: 56px;
+  --text-display-xl--letter-spacing: -2.8px;
+  --text-display-xl--font-weight: 600;
+  --text-heading-lg: 38px;
+  --text-heading-lg--line-height: 46px;
+  --text-heading-lg--letter-spacing: -1.52px;
+  --text-heading-lg--font-weight: 600;
+  --text-heading-md: 22px;
+  --text-heading-md--line-height: 30px;
+  --text-heading-md--letter-spacing: -0.44px;
+  --text-heading-md--font-weight: 600;
+  --text-label-sm: 15px;
+  --text-label-sm--line-height: 22px;
+  --text-label-sm--letter-spacing: -0.3px;
+  --text-label-sm--font-weight: 500;
+  --text-body-lg: 17px;
+  --text-body-lg--line-height: 26px;
+  --text-body-sm: 13px;
+  --text-body-sm--line-height: 18px;
+}
+
+/* ---- 基础样式:墨与画布的黑白银灰对 ---- */
+html {
+  background: var(--color-canvas);
+}
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 22px;
+  -webkit-font-smoothing: antialiased;
+}
+::selection {
+  background: var(--color-link-soft);
+}
+
+/* ---- mono eyebrow:小号大写技术标签(Geist 系统的招牌;保持小号制造对比) ---- */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 18px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--color-mute);
+}
+
+/* ---- hero mesh 渐变:系统唯一的装饰元素,只出现在页首 ---- */
+.mesh-bloom {
+  position: absolute;
+  pointer-events: none;
+  background:
+    radial-gradient(at 18% 28%, var(--color-grad-develop-start) 0, transparent 52%),
+    radial-gradient(at 82% 18%, var(--color-grad-develop-end) 0, transparent 48%),
+    radial-gradient(at 72% 82%, var(--color-grad-preview-start) 0, transparent 55%),
+    radial-gradient(at 28% 88%, var(--color-grad-preview-end) 0, transparent 50%),
+    radial-gradient(at 55% 55%, var(--color-grad-ship-end) 0, transparent 58%);
+  filter: blur(48px);
+  opacity: 0.28;
+}
+
+/* ---- 数据系列渐变(develop/preview/ship 命名系统,用于图表强调) ---- */
+.grad-develop {
+  background-image: linear-gradient(90deg, var(--color-grad-develop-start), var(--color-grad-develop-end));
+}
+.grad-preview {
+  background-image: linear-gradient(90deg, var(--color-grad-preview-start), var(--color-grad-preview-end));
+}
+.grad-ship {
+  background-image: linear-gradient(90deg, var(--color-grad-ship-start), var(--color-grad-ship-end));
+}
+
+/* ---- 报告 Markdown 渲染(Geist 灰阶,无彩色) ---- */
+.md h1 {
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 600;
+  letter-spacing: -0.44px;
+  color: var(--color-ink);
+  margin: 0 0 16px;
+}
+.md h2 {
+  font-size: 17px;
+  line-height: 26px;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin: 28px 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-hairline);
+}
+.md h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin: 18px 0 8px;
+}
+.md p {
+  margin: 8px 0;
+  color: var(--color-body);
+}
+.md ul,
+.md ol {
+  margin: 8px 0;
+  padding-left: 20px;
+  color: var(--color-body);
+}
+.md li {
+  margin: 4px 0;
+}
+.md strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.md code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: 6px;
+  padding: 1px 5px;
+  color: var(--color-ink);
+}
+.md blockquote {
+  margin: 12px 0;
+  padding: 4px 0 4px 14px;
+  border-left: 2px solid var(--color-link);
+  color: var(--color-mute);
+}
+.md table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.md th,
+.md td {
+  border: 1px solid var(--color-hairline);
+  padding: 6px 10px;
+  text-align: left;
+  color: var(--color-body);
+}
+.md th {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-mute);
+  background: var(--color-canvas);
+}
+
+/* ---- 滚动条:融入灰阶 ---- */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-hairline);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-faint);
+}
