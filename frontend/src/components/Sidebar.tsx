@@ -131,6 +131,11 @@ export function Sidebar({
           </span>
         </div>
         <div className="mt-0.5 truncate text-body-sm text-mute">{sync?.source ?? 'douyin-mcp'}</div>
+        {sync?.detail && (
+          <div className="mt-0.5 truncate text-body-sm text-faint" title={sync.detail}>
+            {sync.detail}
+          </div>
+        )}
         <button
           onClick={onSync}
           disabled={syncing}

@@ -11,6 +11,8 @@ import {
   ComposedChart,
   Line,
   ResponsiveContainer,
+  Scatter,
+  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
@@ -20,7 +22,7 @@ import { MetricCard } from '../components/MetricCard'
 import { ViralBadge } from '../components/Buttons'
 import { axisProps, ChartTooltip, gridProps, INK, LINK } from '../components/charts'
 import { fmtDate, fmtNum, fmtPct } from '../data/format'
-import { isViral } from '../data/stats'
+import { isViral, viralThreshold } from '../data/stats'
 import type { DailyStat, Video } from '../types'
 import { getSource } from '../data/source'
 
@@ -37,6 +39,7 @@ export function Overview() {
   const [days, setDays] = useState<(typeof RANGES)[number]>(30)
   const [daily, setDaily] = useState<DailyStat[]>([])
   const [videos, setVideos] = useState<Video[]>([])
+  const [all, setAll] = useState<Video[]>([])
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
@@ -44,6 +47,13 @@ export function Overview() {
       const ds = await getSource()
       setDaily(await ds.dailyStats(days))
       setVideos(await ds.videos())
+      // 全局视野数据(自有+对标);后端离线时退化为空
+      try {
+        const r = await fetch('/api/videos?scope=all')
+        setAll(r.ok ? await r.json() : [])
+      } catch {
+        setAll([])
+      }
       setLoaded(true)
     })()
   }, [days])
@@ -82,6 +92,34 @@ export function Overview() {
       favRate: avg(recent.map((v) => (v.views ? v.favorites / v.views : null))),
     }
   }, [daily, videos, days])
+
+  // 全局视野:自有 vs 对标散点(时长 × 播放,对数轴),爆款大点
+  const scatter = useMemo(() => {
+    const pool = all.length ? all : videos
+    const th = viralThreshold(pool)
+    const pt = (v: Video) => ({
+      x: v.durationSec || 0,
+      y: v.views || 0,
+      name: v.title.slice(0, 24),
+      platform: v.platform,
+    })
+    return {
+      own: pool.filter((v) => v.isOwn && !isViral(v, pool)).map(pt),
+      bench: pool.filter((v) => !v.isOwn && !isViral(v, pool)).map(pt),
+      viral: pool.filter((v) => isViral(v, pool)).map(pt),
+      ownCount: pool.filter((v) => v.isOwn).length,
+      benchCount: pool.filter((v) => !v.isOwn).length,
+      ownMean: Math.round(
+        pool.filter((v) => v.isOwn).reduce((s, v) => s + (v.views || 0), 0) /
+          Math.max(1, pool.filter((v) => v.isOwn).length),
+      ),
+      benchMean: Math.round(
+        pool.filter((v) => !v.isOwn).reduce((s, v) => s + (v.views || 0), 0) /
+          Math.max(1, pool.filter((v) => !v.isOwn).length),
+      ),
+      viralLine: th,
+    }
+  }, [all, videos])
 
   const topVideos = useMemo(
     () => [...videos].sort((a, b) => b.views - a.views).slice(0, 5),
@@ -173,6 +211,69 @@ export function Overview() {
           />
           <MetricCard label="涨粉" value={fmtNum(stats.followers)} delta={stats.followersDelta} sub={`${days} 天`} />
         </div>
+
+        {/* ---- 全局视野:时长 × 播放散点(自有 vs 对标 vs 爆款,对数轴) ---- */}
+        <Card padded={false}>
+          <div className="flex flex-wrap items-end justify-between gap-4 px-8 pt-8">
+            <SectionHeader eyebrow="Landscape" title="全局视野" />
+            <div className="flex items-center gap-4 pb-1 font-mono text-[0.8125rem] text-mute">
+              <span>自有 {scatter.ownCount} · 均 {fmtNum(scatter.ownMean)}</span>
+              <span className="text-faint">|</span>
+              <span>对标 {scatter.benchCount} · 均 {fmtNum(scatter.benchMean)}</span>
+              <span className="text-faint">|</span>
+              <span>爆款线 {fmtNum(scatter.viralLine)}</span>
+            </div>
+          </div>
+          <div className="h-80 px-2 pb-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart margin={{ top: 12, right: 16, bottom: 8, left: 8 }}>
+                <CartesianGrid {...gridProps} />
+                <XAxis
+                  dataKey="x"
+                  name="时长"
+                  type="number"
+                  domain={[0, 'auto']}
+                  {...axisProps}
+                  tickFormatter={(v: number) => (v >= 60 ? `${Math.round(v / 60)}m` : `${v}s`)}
+                />
+                <YAxis
+                  dataKey="y"
+                  name="播放"
+                  scale="log"
+                  domain={['auto', 'auto']}
+                  allowDataOverflow
+                  {...axisProps}
+                  tickFormatter={(v: number) => fmtNum(v)}
+                  width={56}
+                />
+                <Tooltip
+                  cursor={{ strokeDasharray: '3 3', stroke: '#ebebeb' }}
+                  content={({ active, payload }) =>
+                    active && payload?.length ? (
+                      <ChartTooltip
+                        title={payload[0]?.payload?.name ?? ''}
+                        rows={[
+                          { label: '平台', value: payload[0]?.payload?.platform ?? '—' },
+                          { label: '时长', value: `${payload[0]?.payload?.x ?? 0}s` },
+                          { label: '播放', value: fmtNum(payload[0]?.payload?.y), color: INK },
+                        ]}
+                      />
+                    ) : null
+                  }
+                />
+                <Scatter name="对标" data={scatter.bench} fill={LINK} fillOpacity={0.55} shape="square" />
+                <Scatter name="自有" data={scatter.own} fill={INK} fillOpacity={0.75} />
+                <Scatter
+                  name="爆款(≥3×均值)"
+                  data={scatter.viral}
+                  fill={INK}
+                  shape="circle"
+                  fillOpacity={1}
+                />
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
 
         {/* ---- 播放/涨粉趋势 ---- */}
         <Card padded={false}>
