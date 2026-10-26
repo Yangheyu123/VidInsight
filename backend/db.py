@@ -137,6 +137,16 @@ CREATE TABLE IF NOT EXISTS video_scripts (   -- 自有脚本(本地产线 script
   video_id TEXT,                             -- 配对的抖音作品(标题模糊匹配)
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS radar_keywords (  -- 对标雷达关键词订阅(界面可增删)
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  platform TEXT NOT NULL,                    -- bilibili / youtube
+  keyword TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  last_run_at TEXT,
+  created_at TEXT NOT NULL,
+  UNIQUE(platform, keyword)
+);
 """
 
 # 轻量迁移:老库补列(幂等,列已存在则跳过)

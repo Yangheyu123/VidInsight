@@ -76,6 +76,21 @@ export function Videos() {
   const [mFavs, setMFavs] = useState('')
   const [mComments, setMComments] = useState('')
 
+  // 关键词订阅管理(雷达每周自动扫描的词表)
+  const [subsOpen, setSubsOpen] = useState(false)
+  const [subs, setSubs] = useState<{ id: number; platform: string; keyword: string; last_run_at: string | null }[]>([])
+  const [newKw, setNewKw] = useState('')
+  const [newPlat, setNewPlat] = useState<'bilibili' | 'youtube'>('bilibili')
+  const loadSubs = () => {
+    void fetch('/api/radar/keywords')
+      .then((r) => r.json())
+      .then(setSubs)
+      .catch(() => setSubs([]))
+  }
+  useEffect(() => {
+    if (subsOpen) loadSubs()
+  }, [subsOpen])
+
   // 抽屉打开时拉取该作品的天级真实曲线,不足 2 点则回退衰减模型
   useEffect(() => {
     if (!selected) return
@@ -186,12 +201,81 @@ export function Videos() {
               {radarJob.running ? '采集中(限流慢采)…' : '雷达采集'}
             </button>
             <button
+              onClick={() => {
+                setSubsOpen(!subsOpen)
+                if (!subsOpen) loadSubs()
+              }}
+              className="inline-flex h-9 items-center rounded-square border border-hairline px-3 text-label-sm text-ink transition-colors hover:bg-hairline-soft"
+            >
+              {subsOpen ? '收起订阅' : '关键词订阅'}
+            </button>
+            <button
               onClick={() => setManualOpen(!manualOpen)}
               className="inline-flex h-9 items-center rounded-square border border-hairline px-3 text-label-sm text-ink transition-colors hover:bg-hairline-soft"
             >
               {manualOpen ? '收起手动投喂' : '手动投喂(抖音对标)'}
             </button>
           </div>
+          {subsOpen && (
+            <div className="rounded-card border border-hairline bg-canvas p-4">
+              <div className="eyebrow mb-2">Subscriptions · 每周自动扫描</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex rounded-square border border-hairline bg-elevated p-0.5">
+                  {(['bilibili', 'youtube'] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setNewPlat(p)}
+                      className={`h-8 rounded-[4px] px-3 font-mono text-[0.8125rem] transition-colors ${
+                        newPlat === p ? 'bg-primary text-white' : 'text-body hover:text-ink'
+                      }`}
+                    >
+                      {p === 'bilibili' ? 'B站' : 'YouTube'}
+                    </button>
+                  ))}
+                </div>
+                <div className="w-56">
+                  <TextInput value={newKw} onChange={setNewKw} placeholder="新关键词…" />
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!newKw.trim()) return
+                    await fetch('/api/radar/keywords', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ platform: newPlat, keyword: newKw }),
+                    })
+                    setNewKw('')
+                    loadSubs()
+                  }}
+                  className="btn-press inline-flex h-9 items-center rounded-square bg-primary px-3 text-label-sm text-white hover:bg-ink"
+                >
+                  订阅
+                </button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {subs.map((s) => (
+                  <span
+                    key={s.id}
+                    className="inline-flex items-center gap-2 rounded-full border border-hairline bg-elevated px-3 py-1.5 text-body-md text-ink"
+                  >
+                    <span className="font-mono text-body-sm text-faint">{s.platform === 'bilibili' ? 'B站' : 'YT'}</span>
+                    {s.keyword}
+                    <button
+                      onClick={async () => {
+                        await fetch(`/api/radar/keywords/${s.id}`, { method: 'DELETE' })
+                        loadSubs()
+                      }}
+                      className="text-mute hover:text-error"
+                      aria-label="删除订阅"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+                {subs.length === 0 && <span className="text-body-sm text-mute">暂无订阅,添加后每周自动扫描</span>}
+              </div>
+            </div>
+          )}
           {manualOpen && (
             <div className="flex flex-wrap items-center gap-2 rounded-card border border-hairline bg-canvas p-2.5">
               <span className="eyebrow ml-1">Manual</span>

@@ -374,6 +374,61 @@ def radar_collect(body: RadarBody) -> dict:
     return _run_job("radar", _run)
 
 
+# ---------------- 关键词订阅(雷达自动扫描的词表,界面可增删) ----------------
+
+@app.get("/api/radar/keywords")
+def radar_keywords() -> list[dict]:
+    _seed_keywords()
+    return [
+        dict(r)
+        for r in db.conn().execute("SELECT * FROM radar_keywords ORDER BY platform, id").fetchall()
+    ]
+
+
+class KeywordBody(BaseModel):
+    platform: str  # bilibili / youtube
+    keyword: str
+
+
+@app.post("/api/radar/keywords")
+def radar_keyword_add(body: KeywordBody) -> dict:
+    if body.platform not in ("bilibili", "youtube") or not body.keyword.strip():
+        return {"error": "参数非法"}
+    try:
+        db.conn().execute(
+            "INSERT INTO radar_keywords(platform, keyword, created_at) VALUES(?,?,?)",
+            (body.platform, body.keyword.strip()[:40], db.now_iso()),
+        )
+        db.conn().commit()
+        return {"ok": True}
+    except sqlite3.IntegrityError:
+        return {"error": "已订阅过该关键词"}
+
+
+@app.delete("/api/radar/keywords/{kid}")
+def radar_keyword_del(kid: int) -> dict:
+    db.conn().execute("DELETE FROM radar_keywords WHERE id=?", (kid,))
+    db.conn().commit()
+    return {"ok": True}
+
+
+def _seed_keywords() -> None:
+    """首次访问播种默认订阅(仅空表时)"""
+    n = db.conn().execute("SELECT COUNT(*) FROM radar_keywords").fetchone()[0]
+    if n:
+        return
+    from .config import RADAR_KEYWORDS
+
+    now = db.now_iso()
+    for plat, kws in RADAR_KEYWORDS.items():
+        for kw in kws:
+            db.conn().execute(
+                "INSERT OR IGNORE INTO radar_keywords(platform, keyword, created_at) VALUES(?,?,?)",
+                (plat, kw, now),
+            )
+    db.conn().commit()
+
+
 # ---------------- 爆款脚本管线(对标逐字稿 → 素材库) ----------------
 
 @app.post("/api/scripts/ingest")
