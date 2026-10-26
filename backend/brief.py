@@ -109,5 +109,21 @@ def build_brief() -> dict:
     return {"ok": True, "path": str(BRIEF_PATH), "chars": len(content)}
 
 
-if __name__ == "__main__":
-    print(build_brief())
+PROMPT_WRAPPER = """你是我的短视频编剧(赛道:思辨哲学,受众18-23岁男性为主)。
+下面是「创作简报」——由我的数据中台基于真实账号数据+对标爆款自动生成,具有最高优先级。
+你必须严格服从其中的执行规则与模板;写出的剧本若与简报铁律冲突,视为无效。
+
+{content}
+
+现在请基于以上简报,为我写一条新视频的完整脚本(开场3秒钩子→中段→结尾指令),长度60-90秒。"""
+
+
+def build_prompt() -> str:
+    """包装成可直接整段粘贴给任意 AI(ChatGPT/Kimi/豆包/其它 agent)的完整提示词"""
+    if not BRIEF_PATH.exists():
+        build_brief()
+    try:
+        content = BRIEF_PATH.read_text(encoding="utf-8")
+    except OSError:
+        content = ""
+    return PROMPT_WRAPPER.replace("{content}", content)

@@ -385,6 +385,14 @@ def brief_export() -> dict:
     return brief.build_brief()
 
 
+@app.get("/api/brief")
+def brief_get() -> dict:
+    """外接 AI 直喂:返回简报全文 + 可整段粘贴的包装提示词"""
+    from . import brief
+
+    return {"content": brief.build_prompt(), "raw": brief.BRIEF_PATH.read_text(encoding="utf-8") if brief.BRIEF_PATH.exists() else ""}
+
+
 @app.get("/api/sync-status")
 def sync_status() -> dict:
     s = db.conn().execute("SELECT * FROM sources WHERE id=?", (ingest.SOURCE_ID,)).fetchone()

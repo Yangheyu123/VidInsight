@@ -43,6 +43,7 @@ export function useJob(
 export function Reports() {
   const [list, setList] = useState<ReportMeta[]>([])
   const [detail, setDetail] = useState<{ title: string; html: string } | null>(null)
+  const [copied, setCopied] = useState(false)
   const job = useJob(
     'report',
     () => fetch('/api/report/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'own' }) }),
@@ -90,6 +91,21 @@ export function Reports() {
       <div className="mt-1 flex flex-wrap items-end justify-between gap-4">
         <h1 className="text-heading-lg text-ink">报告中心</h1>
         <div className="flex flex-wrap gap-2">
+          <button
+            onClick={async () => {
+              try {
+                const r = await fetch('/api/brief').then((x) => x.json())
+                await navigator.clipboard.writeText(r.content ?? '')
+                setCopied(true)
+                setTimeout(() => setCopied(false), 1800)
+              } catch {
+                /* 剪贴板不可用时静默 */
+              }
+            }}
+            className="btn-press inline-flex h-8 items-center rounded-square border border-hairline bg-elevated px-3 text-label-sm text-ink hover:bg-hairline-soft"
+          >
+            {copied ? '✓ 已复制,粘贴给任意 AI' : '复制简报提示词(外接 AI)'}
+          </button>
           <SquarePrimary onClick={() => job.trigger(load)} disabled={job.running}>
             {job.running ? '生成中(约3分钟)…' : '生成报告(自有数据)'}
           </SquarePrimary>
