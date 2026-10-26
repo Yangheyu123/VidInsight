@@ -4,10 +4,11 @@
 幂等:可由 Windows 任务计划每天触发;不到期就空转退出(秒级)。
 通知:health 变 failing 时写 data/alert.flag(推送通道待拍板 Server酱/飞书后接入)。
 """
+import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from . import db, ingest, llm, materials, report
+from . import db, ingest, llm, materials, report, radar
 from .config import BJ_TZ, ROOT
 
 
@@ -39,7 +40,8 @@ def _mark_next(sid: str, interval_minutes: int) -> None:
 def tick() -> None:
     db.init_db()
 
-    # ---- P0 备份:每日滚动备份 platform.db(保留 7 份) ----
+    # ---- P0 备份:每日滚动备份 platform.db(保留 7 份)+ 云同步 ----
+    backup_path = None
     try:
         import shutil
         import sqlite3
@@ -57,11 +59,34 @@ def tick() -> None:
         olds = sorted(backup_dir.glob("platform-*.db"))
         for old in olds[:-7]:
             old.unlink(missing_ok=True)
+        backup_path = dest
         print(f"[tick] 备份 OK:{dest.name}")
     except Exception as e:  # noqa: BLE001
         print(f"[tick] 备份失败:{e}")
 
-    now = datetime.now(tz=ZoneInfo(BJ_TZ))
+    # ---- 云同步:备份后推到服务器(展示端),密码走 SSH key;失败不影响主流程 ----
+    if backup_path:
+        try:
+            import subprocess
+
+            host = os.getenv("SYNC_HOST", "8.148.189.45")
+            r = subprocess.run(
+                ["scp", "-o", "StrictHostKeyChecking=no", "-o", "BatchMode=yes",
+                 str(backup_path), f"root@{host}:/root/vidinsight/data/platform.db"],
+                capture_output=True, timeout=180,
+            )
+            if r.returncode == 0:
+                # 推完让容器重读(sqlite WAL 下热读安全,但 restart 保证句柄干净)
+                subprocess.run(
+                    ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "BatchMode=yes",
+                     f"root@{host}", "cd ~/vidinsight && docker compose restart"],
+                    capture_output=True, timeout=120,
+                )
+                print("[tick] 云同步 OK(库已推送+容器重启)")
+            else:
+                print("[tick] 云同步跳过(SSH key 未配或网络失败,不影响本地)")
+        except Exception as e:  # noqa: BLE001
+            print(f"[tick] 云同步失败:{e}")
     _ensure_source("douyin_self", "抖音自数据(douyin-mcp)", "douyin_self", 1440)
     _ensure_source("materials_hub", "素材引擎(知乎/微博/一言)", "materials", 1440)
     _ensure_source("report_weekly", "周报生成(LLM)", "report", 10080)
