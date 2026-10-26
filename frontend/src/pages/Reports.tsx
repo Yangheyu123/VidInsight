@@ -16,7 +16,10 @@ interface ReportMeta {
 }
 
 /** 通用异步任务轮询:POST 启动 → 轮询 /api/jobs 直到 running=false */
-export function useJob(jobName: 'report' | 'materials' | 'radar', start: () => Promise<Response>) {
+export function useJob(
+  jobName: 'report' | 'materials' | 'radar' | 'scripts',
+  start: () => Promise<Response>,
+) {
   const [running, setRunning] = useState(false)
   const trigger = async (onDone: () => void) => {
     const r = await start()

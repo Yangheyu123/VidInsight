@@ -40,8 +40,9 @@ def tick() -> None:
     db.init_db()
     now = datetime.now(tz=ZoneInfo(BJ_TZ))
     _ensure_source("douyin_self", "抖音自数据(douyin-mcp)", "douyin_self", 1440)
-    _ensure_source("materials_hub", "素材引擎(知乎/一言+LLM)", "materials", 1440)
+    _ensure_source("materials_hub", "素材引擎(知乎/微博/一言)", "materials", 1440)
     _ensure_source("report_weekly", "周报生成(LLM)", "report", 10080)
+    _ensure_source("bench_scripts", "爆款脚本管线(对标逐字稿)", "scripts", 10080)
 
     # ---- 抖音自数据 ----
     if _due("douyin_self", now):
@@ -71,6 +72,17 @@ def tick() -> None:
         except Exception as e:  # noqa: BLE001
             print(f"[tick] 报告生成失败:{e}")
         _mark_next("report_weekly", 10080)
+
+    # ---- 爆款脚本管线(每周:对标爆款 → 逐字稿 → 素材库)----
+    if _due("bench_scripts", now):
+        print("[tick] bench_scripts:到期,提取爆款脚本…")
+        try:
+            from . import scripts_ingest
+            r = scripts_ingest.ingest_bench_scripts(limit=3)
+            print(f"[tick] 脚本管线完成:{r}")
+        except Exception as e:  # noqa: BLE001
+            print(f"[tick] 脚本管线失败:{e}")
+        _mark_next("bench_scripts", 10080)
 
     # 告警标记(P1 用文件标记,推送通道接入后替换为真实推送)
     failing = db.conn().execute(
