@@ -79,6 +79,7 @@ export function Sidebar({
   onToggleDemo,
   open,
   onClose,
+  onOpenPalette,
 }: {
   route: Route
   onRoute: (r: Route) => void
@@ -89,6 +90,7 @@ export function Sidebar({
   onToggleDemo: () => void
   open: boolean
   onClose: () => void
+  onOpenPalette: () => void
 }) {
   const nav = (
     <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
@@ -145,6 +147,13 @@ export function Sidebar({
           }`}
         >
           {demo ? '演示数据 · 点击切回' : '演示数据'}
+        </button>
+        <button
+          onClick={onOpenPalette}
+          className="mt-2 flex h-7 w-full items-center justify-center gap-1.5 rounded-square border border-hairline bg-elevated text-body-sm text-mute transition-colors hover:bg-hairline-soft hover:text-ink"
+        >
+          命令面板
+          <kbd className="rounded-[3px] border border-hairline bg-canvas px-1 font-mono text-[0.625rem]">⌘K</kbd>
         </button>
       </div>
     </div>

@@ -2,8 +2,9 @@
    应用壳:左侧中台侧边栏 + 主区(横幅/页面/页脚)
    极简 hash 路由(5 页不值得路由库)
    ============================================================ */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Sidebar, type Route } from './components/Sidebar'
+import { CommandPalette, type CommandAction } from './components/CommandPalette'
 import { Overview } from './pages/Overview'
 import { Videos } from './pages/Videos'
 import { Templates } from './pages/Templates'
@@ -25,6 +26,21 @@ export default function App() {
   const [syncing, setSyncing] = useState(false)
   const [demo] = useState(isDemoMode())
   const [menuOpen, setMenuOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+
+  // ⌘K / Ctrl+K 命令面板
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen((v) => !v)
+      } else if (e.key === 'Escape') {
+        setPaletteOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   useEffect(() => {
     const onHash = () => setRoute(routeFromHash())
@@ -90,6 +106,55 @@ export default function App() {
     }, 900)
   }
 
+  // ⌘K 命令集:导航 + 动作(动作类触发后跳转对应页面查看进度)
+  const actions = useMemo<CommandAction[]>(
+    () => [
+      { id: 'go-overview', label: '前往总览', group: '导航', hint: 'G 1', run: () => go('overview') },
+      { id: 'go-videos', label: '前往作品明细', group: '导航', run: () => go('videos') },
+      { id: 'go-templates', label: '前往模板对比', group: '导航', run: () => go('templates') },
+      { id: 'go-reports', label: '前往报告中心', group: '导航', run: () => go('reports') },
+      { id: 'go-materials', label: '前往素材库', group: '导航', run: () => go('materials') },
+      { id: 'act-sync', label: '立即同步抖音数据(无头后台)', group: '数据', run: () => void runSync() },
+      {
+        id: 'act-report',
+        label: '生成拆解报告(自有数据)',
+        group: '分析',
+        run: () => {
+          void fetch('/api/report/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scope: 'own' }),
+          })
+          go('reports')
+        },
+      },
+      {
+        id: 'act-report-bench',
+        label: '生成对标爆款拆解',
+        group: '分析',
+        run: () => {
+          void fetch('/api/report/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scope: 'bench' }),
+          })
+          go('reports')
+        },
+      },
+      {
+        id: 'act-materials',
+        label: '抓取新素材(八源严选)',
+        group: '分析',
+        run: () => {
+          void fetch('/api/materials/fetch', { method: 'POST' })
+          go('materials')
+        },
+      },
+      { id: 'act-demo', label: demo ? '切回真实数据' : '切换演示数据', group: '数据', run: toggleDemo },
+    ],
+    [demo], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
   return (
     <div className="flex min-h-screen">
       <Sidebar
@@ -102,7 +167,10 @@ export default function App() {
         onToggleDemo={toggleDemo}
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
+        onOpenPalette={() => setPaletteOpen(true)}
       />
+
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} actions={actions} />
 
       <div className="min-w-0 flex-1">
         {/* 移动端顶栏 */}

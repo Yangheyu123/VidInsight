@@ -109,7 +109,7 @@ export function Overview() {
               <button
                 key={r}
                 onClick={() => setDays(r)}
-                className={`h-8 rounded-[4px] px-3.5 font-mono text-[13px] transition-colors ${
+                className={`h-8 rounded-[4px] px-3.5 font-mono text-[0.8125rem] transition-colors ${
                   days === r ? 'bg-primary text-white' : 'text-body hover:text-ink'
                 }`}
               >
@@ -142,7 +142,7 @@ export function Overview() {
             <p className="mt-2 text-body-md text-body">
               后端未连接或统一库为空。启动后端并触发一次同步:
             </p>
-            <code className="mt-3 inline-block rounded-square border border-hairline bg-canvas px-3 py-1.5 font-mono text-[13px] text-body">
+            <code className="mt-3 inline-block rounded-square border border-hairline bg-canvas px-3 py-1.5 font-mono text-[0.8125rem] text-body">
               .venv\Scripts\python -m uvicorn backend.api:app --port 8787
             </code>
             <p className="mt-3 text-body-sm text-mute">
@@ -292,12 +292,12 @@ export function Overview() {
                       <span className="truncate text-body-md text-ink">{v.title}</span>
                       {isViral(v, videos) && <ViralBadge />}
                     </div>
-                    <div className="mt-0.5 font-mono text-[13px] text-mute">
+                    <div className="mt-0.5 font-mono text-[0.8125rem] text-mute">
                       {fmtDate(v.publishTime)} · {fmtNum(v.views)}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-mono text-[15px] text-ink">{fmtPct(v.views ? v.favorites / v.views : null)}</div>
+                    <div className="font-mono text-[0.9375rem] text-ink">{fmtPct(v.views ? v.favorites / v.views : null)}</div>
                     <div className="text-body-sm text-mute">收藏率</div>
                   </div>
                 </div>
