@@ -288,14 +288,25 @@ def video_manual(body: ManualVideo) -> dict:
 # ---------------- P3 素材库 ----------------
 
 @app.get("/api/materials")
-def materials_list(status: str = "") -> list[dict]:
-    sql = "SELECT * FROM materials"
-    args: tuple = ()
+def materials_list(status: str = "", category: str = "", page: int = 1, page_size: int = 30) -> dict:
+    """分页返回:items + total/pages;status/category 可选过滤"""
+    where, args = "1=1", []
     if status:
-        sql += " WHERE status=?"
-        args = (status,)
-    sql += " ORDER BY score DESC, id DESC LIMIT 200"
-    return [dict(r) for r in db.conn().execute(sql, args).fetchall()]
+        where += " AND status=?"
+        args.append(status)
+    if category:
+        where += " AND category=?"
+        args.append(category)
+    total = db.conn().execute(
+        f"SELECT COUNT(*) FROM materials WHERE {where}", args
+    ).fetchone()[0]
+    pages = max(1, -(-total // page_size))
+    page = max(1, min(page, pages))
+    rows = db.conn().execute(
+        f"SELECT * FROM materials WHERE {where} ORDER BY score DESC, id DESC LIMIT ? OFFSET ?",
+        [*args, page_size, (page - 1) * page_size],
+    ).fetchall()
+    return {"items": [dict(r) for r in rows], "total": total, "page": page, "pages": pages, "page_size": page_size}
 
 
 @app.post("/api/materials/fetch")

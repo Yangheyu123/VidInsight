@@ -104,7 +104,8 @@ CREATE TABLE IF NOT EXISTS reports (
 
 CREATE TABLE IF NOT EXISTS materials (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  source TEXT NOT NULL,                      -- zhihu_hot / hitokoto / ...
+  source TEXT NOT NULL,                      -- zhihu_hot / weibo_hot / hitokoto / classics / bili_hot / v2ex ...
+  category TEXT NOT NULL DEFAULT '热点爆款',  -- 热点爆款 / 传统哲学 / 小众潜力
   title TEXT NOT NULL,
   content TEXT,
   url TEXT UNIQUE,
@@ -147,6 +148,7 @@ _MIGRATIONS = (
     "ALTER TABLE snapshots ADD COLUMN follower_play_ratio REAL",
     "ALTER TABLE snapshots ADD COLUMN avg_play_ratio REAL",
     "ALTER TABLE snapshots ADD COLUMN dislike_rate REAL",
+    "ALTER TABLE materials ADD COLUMN category TEXT NOT NULL DEFAULT '热点爆款'",
 )
 
 

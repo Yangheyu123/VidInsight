@@ -31,23 +31,7 @@ export function Templates() {
     })()
   }, [])
 
-  // 真实模式:模板由 P2 报告中心沉淀,接入前为空 → 占位说明
-  if (templates.length === 0) {
-    return (
-      <Placeholder
-        eyebrow="Templates · Awaiting Data"
-        title="模板库待沉淀"
-        desc="模板从爆款拆解报告中沉淀生成。触发条件:作品数据积累 + 报告中心(P2)接入。"
-        phase="P2 前为空"
-        bullets={[
-          '当前已在采集的数据:每条作品的完播率 / 5s完播 / 收藏率 / 涨粉',
-          'P2 报告中心上线后,LLM 按数据表现自动归纳模板(钩子/结构/指标)',
-          '模板对比页将基于真实模板数据自动激活',
-        ]}
-      />
-    )
-  }
-
+  // 注意:所有钩子必须无条件执行(空态判断在钩子之后,否则 Hook 顺序违规白屏)
   const a = templates.find((t) => t.id === aId) ?? templates[0]
   const b = templates.find((t) => t.id === bId) ?? templates[1] ?? templates[0]
 
@@ -66,8 +50,25 @@ export function Templates() {
     return score(a) >= score(b) ? a : b
   }, [a, b])
 
+  // 真实模式:模板由报告沉淀,未生成报告前为空 → 占位说明
+  if (templates.length === 0) {
+    return (
+      <Placeholder
+        eyebrow="Templates · Awaiting Data"
+        title="模板库待沉淀"
+        desc="模板从爆款拆解报告中沉淀生成,去「报告中心」生成一份即可激活。"
+        phase="待生成报告"
+        bullets={[
+          '当前已在采集:每条作品的完播率 / 5s完播 / 收藏率 / 涨粉',
+          '生成报告后,LLM 按数据表现自动归纳模板(钩子/结构/指标)',
+          '本页将基于真实模板数据自动激活',
+        ]}
+      />
+    )
+  }
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-7xl px-6 py-10 lg:px-10">
       <div className="eyebrow">Templates</div>
       <h1 className="mt-1 text-heading-lg text-ink">模板对比</h1>
       <p className="mt-2 max-w-xl text-body-lg text-body">
