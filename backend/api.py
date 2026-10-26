@@ -109,14 +109,47 @@ def videos(scope: str = "own") -> list[dict]:
 
 
 @app.get("/api/daily")
-def daily(days: int = 30) -> list[dict]:
-    """天级粒度聚合(口径优先级):
-    1) video_daily 表:douyin-mcp 的 metric_date 日累计 → 相邻日差值(精确)
-    2) snapshots 表兜底:相邻抓取的正增量
-    完播率取当日快照均值(比率非累计,不能做差)"""
+def daily(days: int = 30) -> dict:
+    """天级趋势。模式:
+    increment  —— video_daily ≥2 个日期:相邻日差值(真·日增量)
+    cumulative —— 冷启动(只有 1 天):作品当前播放按发布日聚合,首日即可视
+    返回 {mode, items}"""
     since = (datetime.now(tz=ZoneInfo(BJ_TZ)) - timedelta(days=days)).strftime("%Y-%m-%d")
+    out: list[dict] = []
+    mode = "increment"
 
-    # ---- 播放/涨粉:video_daily 优先 ----
+    distinct = db.conn().execute(
+        "SELECT COUNT(DISTINCT date) FROM video_daily"
+    ).fetchone()[0]
+    if distinct < 2:
+        # ---- 冷启动:累计口径(按发布日聚合当前值) ----
+        mode = "cumulative"
+        rows = db.conn().execute(
+            """SELECT substr(publish_time, 1, 10) d, views, followers_gained, completion_rate
+               FROM videos WHERE is_own=1 AND publish_time IS NOT NULL AND date(substr(publish_time,1,10)) >= date(?)""",
+            (since,),
+        ).fetchall()
+        agg: dict[str, dict] = {}
+        for r in rows:
+            a = agg.setdefault(r["d"], {"plays": 0, "gained": 0, "comps": []})
+            a["plays"] += r["views"] or 0
+            a["gained"] += r["followers_gained"] or 0
+            if r["completion_rate"] is not None:
+                a["comps"].append(r["completion_rate"])
+        for i in range(days - 1, -1, -1):
+            d = (datetime.now(tz=ZoneInfo(BJ_TZ)) - timedelta(days=i)).strftime("%Y-%m-%d")
+            a = agg.get(d)
+            out.append(
+                {
+                    "date": d,
+                    "plays": a["plays"] if a else 0,
+                    "newFollowers": a["gained"] if a else 0,
+                    "avgCompletion": (sum(a["comps"]) / len(a["comps"])) if a and a["comps"] else None,
+                }
+            )
+        return {"mode": mode, "items": out}
+
+    # ---- 正常:日增量口径 ----
     plays: dict[str, int] = {}
     gained: dict[str, int] = {}
     vd_rows = db.conn().execute(
@@ -169,7 +202,7 @@ def daily(days: int = 30) -> list[dict]:
                 "avgCompletion": (sum(c) / len(c)) if c else None,
             }
         )
-    return out
+    return {"mode": mode, "items": out}
 
 
 @app.get("/api/videos/{video_id}/daily")
