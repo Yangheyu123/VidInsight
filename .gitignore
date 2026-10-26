@@ -1,6 +1,7 @@
 # ===== 敏感与本地配置(绝不入库) =====
 .env
-data/
+# 仅根目录运行数据;注意 frontend/src/data/ 是前端数据层代码,必须入库
+/data/
 *.db
 *.sqlite
 alert.flag
