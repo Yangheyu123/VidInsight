@@ -150,6 +150,15 @@ export default function App() {
           go('materials')
         },
       },
+      {
+        id: 'act-scripts',
+        label: '提取爆款脚本(对标逐字稿转写)',
+        group: '分析',
+        run: () => {
+          void fetch('/api/scripts/ingest', { method: 'POST' })
+          go('materials')
+        },
+      },
       { id: 'act-demo', label: demo ? '切回真实数据' : '切换演示数据', group: '数据', run: toggleDemo },
     ],
     [demo], // eslint-disable-line react-hooks/exhaustive-deps

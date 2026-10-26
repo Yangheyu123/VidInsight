@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import db, ingest, llm, materials, radar, report
+from . import db, ingest, llm, materials, radar, report, scripts_ingest
 from .config import API_HOST, API_PORT, BJ_TZ
 
 app = FastAPI(title="抖音运营中台 API", version="0.1.0")
@@ -32,8 +32,10 @@ _sync_lock = threading.Lock()
 _sync_state = {"running": False, "last_result": None, "error": None}
 
 # ---- 通用异步任务注册表(报告/素材/雷达,前端轮询 running 状态) ----
-_jobs: dict[str, dict] = {"report": {"running": False}, "materials": {"running": False}, "radar": {"running": False}
-                          }
+_jobs: dict[str, dict] = {
+    "report": {"running": False}, "materials": {"running": False},
+    "radar": {"running": False}, "scripts": {"running": False},
+}
 _jobs_lock = threading.Lock()
 
 
@@ -350,6 +352,14 @@ def radar_collect(body: RadarBody) -> dict:
         mode=body.mode, url=body.url, keyword=body.keyword,
         platform=body.platform, limit=body.limit,
     )
+
+
+# ---------------- 爆款脚本管线(对标逐字稿 → 素材库) ----------------
+
+@app.post("/api/scripts/ingest")
+def scripts_ingest_api() -> dict:
+    """对标爆款 → 音频(临时)→ 转写 → LLM 提炼钩子/金句 → 素材库「爆款脚本」"""
+    return _run_job("scripts", scripts_ingest.ingest_bench_scripts, limit=3)
 
 
 @app.get("/api/sync-status")

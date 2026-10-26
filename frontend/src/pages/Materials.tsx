@@ -24,14 +24,17 @@ interface Material {
 }
 
 const FILTERS = ['全部', '待用', '已用', '丢弃']
-const CATEGORIES = ['全部', '热点爆款', '传统哲学', '小众潜力']
+const CATEGORIES = ['全部', '热点爆款', '传统哲学', '小众潜力', '爆款脚本']
 const SOURCE_LABEL: Record<string, string> = {
   zhihu_hot: '知乎热榜',
   weibo_hot: '微博热搜',
+  baidu_hot: '百度热搜',
   bili_hot: 'B站热门',
   bili_philosophy: 'B站哲学区',
   hitokoto: '一言',
   v2ex: 'V2EX',
+  hackernews: 'HackerNews',
+  bench_video: '对标逐字稿',
 }
 
 /** 三维评分条:墨色填充,10 分满格 */
@@ -61,6 +64,10 @@ export function Materials() {
   const rescoreJob = useJob(
     'materials',
     () => fetch('/api/materials/rescore', { method: 'POST' }),
+  )
+  const scriptsJob = useJob(
+    'scripts',
+    () => fetch('/api/scripts/ingest', { method: 'POST' }),
   )
 
   const load = useCallback(() => {
@@ -103,8 +110,15 @@ export function Materials() {
         >
           {rescoreJob.running ? '重评中…' : '按画像重评'}
         </button>
+        <button
+          onClick={() => scriptsJob.trigger(load)}
+          disabled={scriptsJob.running}
+          className="inline-flex h-8 items-center rounded-square border border-hairline bg-elevated px-3 text-label-sm text-ink transition-colors hover:bg-hairline-soft disabled:opacity-50"
+        >
+          {scriptsJob.running ? '转写提炼中(约5分钟)…' : '提取爆款脚本'}
+        </button>
       </div>
-      <p className="mt-2 text-body-md text-mute">八源抓取 · LLM 三维打分 · 仅收 7 分以上</p>
+      <p className="mt-2 text-body-md text-mute">八源抓取 · LLM 三维打分 · 仅收 7 分以上 · 爆款脚本:对标逐字稿(音频即取即删)</p>
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
         {CATEGORIES.map((c) => (
