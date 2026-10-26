@@ -3,7 +3,7 @@
    极简 hash 路由(5 页不值得路由库)
    ============================================================ */
 import { useEffect, useMemo, useState } from 'react'
-import { Sidebar, type Route } from './components/Sidebar'
+import { Sidebar, type JobsState, type Route } from './components/Sidebar'
 import { CommandPalette, type CommandAction } from './components/CommandPalette'
 import { Overview } from './pages/Overview'
 import { Videos } from './pages/Videos'
@@ -27,6 +27,26 @@ export default function App() {
   const [demo] = useState(isDemoMode())
   const [menuOpen, setMenuOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [jobs, setJobs] = useState<JobsState | null>(null)
+
+  // 全局任务心跳:每 5 秒轮询,刷新页面不丢后台任务状态(雷达/报告/素材/脚本)
+  useEffect(() => {
+    let alive = true
+    const poll = async () => {
+      try {
+        const r = await fetch('/api/jobs')
+        if (r.ok && alive) setJobs(await r.json())
+      } catch {
+        /* 离线由横幅兜底 */
+      }
+    }
+    void poll()
+    const t = setInterval(poll, 5000)
+    return () => {
+      alive = false
+      clearInterval(t)
+    }
+  }, [])
 
   // ⌘K / Ctrl+K 命令面板
   useEffect(() => {
@@ -177,6 +197,7 @@ export default function App() {
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         onOpenPalette={() => setPaletteOpen(true)}
+        jobs={jobs}
       />
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} actions={actions} />

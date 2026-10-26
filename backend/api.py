@@ -63,7 +63,15 @@ def _run_job(name: str, fn, *args, **kwargs) -> dict:
 @app.get("/api/jobs")
 def jobs() -> dict:
     with _jobs_lock:
-        return {k: {"running": v["running"], "error": v.get("error"), "result": v.get("result")} for k, v in _jobs.items()}
+        return {
+            k: {
+                "running": v["running"],
+                "error": v.get("error"),
+                "result": v.get("result"),
+                "progress": v.get("progress"),
+            }
+            for k, v in _jobs.items()
+        }
 
 
 @app.on_event("startup")
@@ -354,11 +362,16 @@ class RadarBody(BaseModel):
 
 @app.post("/api/radar/collect")
 def radar_collect(body: RadarBody) -> dict:
-    return _run_job(
-        "radar", radar.collect_radar,
-        mode=body.mode, url=body.url, keyword=body.keyword,
-        platform=body.platform, limit=body.limit,
-    )
+    def _run():
+        return radar.collect_radar(
+            mode=body.mode, url=body.url, keyword=body.keyword,
+            platform=body.platform, limit=body.limit,
+            progress=lambda done, total, failed: _jobs["radar"].__setitem__(
+                "progress", {"done": done, "total": total, "failed": failed}
+            ),
+        )
+
+    return _run_job("radar", _run)
 
 
 # ---------------- 爆款脚本管线(对标逐字稿 → 素材库) ----------------

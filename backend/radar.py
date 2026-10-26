@@ -145,8 +145,9 @@ def _build_target(mode: str, platform: str, url: str = "", keyword: str = "", li
 RADAR_SOURCE = "radar_bench"  # 对标源统一注册(周级调度)
 
 
-def collect_radar(mode: str, url: str = "", keyword: str = "", platform: str = "", limit: int = 30) -> dict:
-    """入口:频道/搜索采集 → 统一库 + 审计。带限流,分钟级,供 API 异步/tick 调用。"""
+def collect_radar(mode: str, url: str = "", keyword: str = "", platform: str = "", limit: int = 30, progress=None) -> dict:
+    """入口:频道/搜索采集 → 统一库 + 审计。带限流,分钟级,供 API 异步/tick 调用。
+    progress(done, total, failed):可选进度回调(前端持久进度条)。"""
     db.init_db()
     db.conn().execute(
         """INSERT INTO sources(id, name, kind, interval_minutes, updated_at)
@@ -175,6 +176,11 @@ def collect_radar(mode: str, url: str = "", keyword: str = "", platform: str = "
                     saved += 1
             except Exception:  # noqa: BLE001 - 单条失败跳过
                 failed += 1
+            if progress:
+                try:
+                    progress(i + 1, cap, failed)
+                except Exception:  # noqa: BLE001
+                    pass
             if i < cap - 1:
                 time.sleep(random.uniform(lo, hi))
         return {"listed": len(entries), "saved": saved, "new": new_count, "failed": failed}

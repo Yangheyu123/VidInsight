@@ -96,6 +96,7 @@ export function Overview() {
   // 全局视野:自有 vs 对标散点(时长 × 播放,对数轴),爆款大点
   const scatter = useMemo(() => {
     const pool = all.length ? all : videos
+    const valid = pool.filter((v) => (v.views ?? 0) > 0) // log 轴不收 0/null
     const th = viralThreshold(pool)
     const pt = (v: Video) => ({
       x: v.durationSec || 0,
@@ -103,18 +104,19 @@ export function Overview() {
       name: v.title.slice(0, 24),
       platform: v.platform,
     })
+    const viralSet = valid.filter((v) => (v.views ?? 0) >= th)
     return {
-      own: pool.filter((v) => v.isOwn && !isViral(v, pool)).map(pt),
-      bench: pool.filter((v) => !v.isOwn && !isViral(v, pool)).map(pt),
-      viral: pool.filter((v) => isViral(v, pool)).map(pt),
+      own: valid.filter((v) => v.isOwn && (v.views ?? 0) < th).map(pt),
+      bench: valid.filter((v) => !v.isOwn && (v.views ?? 0) < th).map(pt),
+      viral: viralSet.map(pt),
       ownCount: pool.filter((v) => v.isOwn).length,
       benchCount: pool.filter((v) => !v.isOwn).length,
       ownMean: Math.round(
-        pool.filter((v) => v.isOwn).reduce((s, v) => s + (v.views || 0), 0) /
+        pool.filter((v) => v.isOwn).reduce((s, v) => s + (v.views ?? 0), 0) /
           Math.max(1, pool.filter((v) => v.isOwn).length),
       ),
       benchMean: Math.round(
-        pool.filter((v) => !v.isOwn).reduce((s, v) => s + (v.views || 0), 0) /
+        pool.filter((v) => !v.isOwn).reduce((s, v) => s + (v.views ?? 0), 0) /
           Math.max(1, pool.filter((v) => !v.isOwn).length),
       ),
       viralLine: th,
