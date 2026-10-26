@@ -9,7 +9,10 @@ RUN pnpm build
 FROM python:3.13-slim
 WORKDIR /app
 COPY backend/requirements.txt backend/requirements.txt
-RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r backend/requirements.txt
+# 国内源 + BuildKit 缓存挂载(跨构建复用依赖,失败不重头)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
+    pip install --no-cache-dir -r backend/requirements.txt
 COPY backend/ backend/
 COPY --from=web /web/dist/ frontend/dist/
 
