@@ -13,7 +13,7 @@ import type { Template, Video } from '../types'
 import { getSource } from '../data/source'
 import { useJob } from './Reports'
 
-type SortKey = 'publishTime' | 'views' | 'completionRate' | 'favorites' | 'favRate'
+type SortKey = 'publishTime' | 'views' | 'likes' | 'completionRate' | 'favorites' | 'favRate'
 type FilterKey = 'all' | 'viral' | '7d' | '30d'
 type Scope = 'own' | 'bench' | 'all'
 
@@ -37,6 +37,7 @@ const COLUMNS: { key: SortKey | null; label: string; align?: 'right' }[] = [
   { key: 'publishTime', label: '发布' },
   { key: null, label: '时长' },
   { key: 'views', label: '播放', align: 'right' },
+  { key: 'likes', label: '赞', align: 'right' },
   { key: 'completionRate', label: '完播率', align: 'right' },
   { key: null, label: '5s完播', align: 'right' },
   { key: null, label: '2s跳出', align: 'right' },
@@ -237,7 +238,7 @@ export function Videos() {
       {/* 表格 */}
       <Card className="mt-4" padded={false}>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px] border-collapse text-body-md">
+          <table className="w-full min-w-[960px] border-collapse text-body-md">
             <thead>
               <tr className="border-b border-hairline">
                 {COLUMNS.map((c) => (
@@ -279,6 +280,7 @@ export function Videos() {
                     <td className="px-4 py-3.5 font-mono text-[13px] text-body">{fmtDate(v.publishTime)}</td>
                     <td className="px-4 py-3.5 font-mono text-[13px] text-body">{fmtDur(v.durationSec)}</td>
                     <td className="px-4 py-3.5 text-right font-mono text-[13px] tabular-nums text-ink">{fmtNum(v.views)}</td>
+                    <td className="px-4 py-3.5 text-right font-mono text-[13px] tabular-nums text-body">{fmtNum(v.likes)}</td>
                     <td className="px-4 py-3.5 text-right font-mono text-[13px] tabular-nums text-body">
                       {fmtPct(v.completionRate)}
                     </td>
@@ -346,6 +348,8 @@ export function Videos() {
               <div className="grid grid-cols-3 gap-px overflow-hidden rounded-card border border-hairline bg-hairline">
                 {[
                   { label: '播放', v: fmtNum(selected.views) },
+                  { label: '赞', v: fmtNum(selected.likes) },
+                  { label: '藏', v: fmtNum(selected.favorites) },
                   { label: '曝光', v: fmtNum(selected.exposure) },
                   { label: '涨粉', v: selected.followersGained != null ? `+${fmtNum(selected.followersGained)}` : '—' },
                   { label: '完播率', v: fmtPct(selected.completionRate) },
@@ -354,8 +358,6 @@ export function Videos() {
                   { label: '均观看', v: selected.avgWatchSec != null ? `${selected.avgWatchSec.toFixed(1)}s` : '—' },
                   { label: '收藏率', v: fmtPct(selected.views ? selected.favorites / selected.views : null) },
                   { label: '点赞率', v: fmtPct(selected.views ? selected.likes / selected.views : null) },
-                  { label: '弹幕', v: selected.danmaku != null ? fmtNum(selected.danmaku) : '—' },
-                  { label: '脱粉', v: selected.unfollows != null ? `-${fmtNum(selected.unfollows)}` : '—' },
                   { label: '评论', v: fmtNum(selected.comments) },
                   { label: '不感兴趣率', v: fmtPct(selected.dislikeRate) },
                   { label: '粉丝播放占比', v: fmtPct(selected.followerPlayRatio) },
