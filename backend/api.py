@@ -236,9 +236,53 @@ def report_detail(rid: int) -> dict:
     return dict(r)
 
 
+class ReportBody(BaseModel):
+    scope: str = "own"  # own=自有数据 / bench=对标数据
+
+
 @app.post("/api/report/generate")
-def report_generate() -> dict:
-    return _run_job("report", report.generate)
+def report_generate(body: ReportBody | None = None) -> dict:
+    scope = (body.scope if body else "own") or "own"
+    return _run_job("report", report.generate, scope=scope)
+
+
+# ---------------- 手动投喂对标(抖音等外部爆款数据) ----------------
+
+class ManualVideo(BaseModel):
+    title: str
+    views: int
+    likes: int = 0
+    favorites: int = 0
+    comments: int = 0
+    durationSec: int = 0
+    url: str = ""
+    platform: str = "douyin"  # douyin / bilibili / youtube / other
+    accountId: str = ""
+
+
+@app.post("/api/videos/manual")
+def video_manual(body: ManualVideo) -> dict:
+    """手动录入对标爆款(别人账号的公开四项数据),进统一库走同一报告引擎"""
+    import hashlib
+
+    vid = "manual-" + hashlib.sha1(f"{body.platform}|{body.title}".encode()).hexdigest()[:16]
+    v = {
+        "platform": body.platform, "video_id": vid, "account_id": body.accountId or None,
+        "url": body.url or None, "title": body.title.strip()[:200],
+        "publish_time": datetime.now(tz=ZoneInfo(BJ_TZ)).isoformat(timespec="seconds"),
+        "duration_sec": body.durationSec, "views": body.views, "likes": body.likes,
+        "favorites": body.favorites, "comments": body.comments, "shares": None,
+        "completion_rate": None, "completion_5s_rate": None, "skip_2s_rate": None,
+        "avg_watch_sec": None, "exposure": None, "followers_gained": None,
+        "danmaku": None, "unfollows": None, "follower_play_ratio": None,
+        "avg_play_ratio": None, "dislike_rate": None, "like_rate": None,
+        "comment_rate": None, "share_rate": None, "favorite_rate": None,
+        "cover_url": None, "status": "手动录入", "is_own": 0, "template_id": None,
+        "collected_at": datetime.now(tz=ZoneInfo(BJ_TZ)).isoformat(timespec="seconds"),
+    }
+    is_new = db.upsert_video(v)
+    db.conn().commit()
+    return {"ok": True, "new": is_new, "video_id": vid}
 
 
 # ---------------- P3 素材库 ----------------

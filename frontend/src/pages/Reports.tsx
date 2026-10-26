@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import { marked } from 'marked'
 import { Card } from '../components/Card'
-import { SquarePrimary } from '../components/Buttons'
+import { SquareGhost, SquarePrimary } from '../components/Buttons'
 
 interface ReportMeta {
   id: number
@@ -42,7 +42,11 @@ export function Reports() {
   const [detail, setDetail] = useState<{ title: string; html: string } | null>(null)
   const job = useJob(
     'report',
-    () => fetch('/api/report/generate', { method: 'POST' }),
+    () => fetch('/api/report/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'own' }) }),
+  )
+  const benchJob = useJob(
+    'report',
+    () => fetch('/api/report/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'bench' }) }),
   )
 
   const load = () => {
@@ -82,9 +86,18 @@ export function Reports() {
       <div className="eyebrow">Reports</div>
       <div className="mt-1 flex flex-wrap items-end justify-between gap-4">
         <h1 className="text-heading-lg text-ink">报告中心</h1>
-        <SquarePrimary onClick={() => job.trigger(load)} disabled={job.running}>
-          {job.running ? '生成中(约3分钟)…' : '生成新报告'}
-        </SquarePrimary>
+        <div className="flex flex-wrap gap-2">
+          <SquarePrimary onClick={() => job.trigger(load)} disabled={job.running}>
+            {job.running ? '生成中(约3分钟)…' : '生成报告(自有数据)'}
+          </SquarePrimary>
+          <SquareGhost
+            onClick={() => benchJob.trigger(load)}
+            disabled={benchJob.running}
+            className="h-8"
+          >
+            {benchJob.running ? '对标拆解中…' : '对标爆款拆解(B站/YouTube/手动)'}
+          </SquareGhost>
+        </div>
       </div>
 
       <Card className="mt-8" padded={false}>
