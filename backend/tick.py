@@ -95,6 +95,33 @@ def tick() -> None:
             print(f"[tick] 脚本管线失败:{e}")
         _mark_next("bench_scripts", 10080)
 
+    # ---- 对标雷达(每周:扫「关键词订阅表」里启用的关键词,B站+YouTube)----
+    if _due("radar_bench", now):
+        print("[tick] radar_bench:到期,按订阅关键词扫描…")
+        kws = db.conn().execute(
+            "SELECT id, platform, keyword FROM radar_keywords WHERE enabled=1"
+        ).fetchall()
+        if not kws:
+            print("[tick] 订阅表为空,跳过(界面添加关键词后生效)")
+        for k in kws:
+            try:
+                r = radar.collect_radar(mode="search", keyword=k["keyword"], platform=k["platform"], limit=6)
+                print(f"[tick] 雷达 {k['platform']}:{k['keyword']} → {r}")
+            except Exception as e:  # noqa: BLE001
+                print(f"[tick] 雷达 {k['platform']}:{k['keyword']} 失败:{e}")
+            db.conn().execute(
+                "UPDATE radar_keywords SET last_run_at=? WHERE id=?",
+                (db.now_iso(), k["id"]),
+            )
+        db.conn().commit()
+        try:
+            from . import brief
+
+            brief.build_brief()  # 对标数据变了,简报态势同步刷新
+        except Exception:  # noqa: BLE001
+            pass
+        _mark_next("radar_bench", 10080)
+
     # 告警标记(P1 用文件标记,推送通道接入后替换为真实推送)
     failing = db.conn().execute(
         "SELECT id, last_error FROM sources WHERE health='failing'"
