@@ -98,7 +98,7 @@ export function Overview() {
       {/* ---- hero band:白画布 + mesh 渐变(全站唯一装饰) ---- */}
       <section className="relative overflow-hidden border-b border-hairline">
         <div className="mesh-bloom -top-24 right-0 h-80 w-[620px] rotate-6" aria-hidden />
-        <div className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-6 px-4 py-14 sm:px-6 sm:py-16">
+        <div className="relative mx-auto flex max-w-7xl flex-wrap items-end justify-between gap-6 px-6 py-14 lg:px-10 sm:py-16">
           <div>
             <div className="eyebrow">Douyin Ops</div>
             <h1 className="mt-2 text-heading-lg text-ink">总览</h1>
@@ -120,7 +120,7 @@ export function Overview() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-6xl space-y-8 px-4 py-10 sm:px-6">
+      <div className="mx-auto max-w-7xl space-y-8 px-6 py-10 lg:px-10">
         {/* 加载骨架屏(真实数据到达前的呼吸感) */}
         {!loaded ? (
           <>

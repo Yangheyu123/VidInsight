@@ -100,7 +100,150 @@ def fetch_weibo_hot(limit: int = 20) -> list[dict]:
     return out[:limit]
 
 
-# ---------------- 打分 ----------------
+# ---------------- 语料库:全抓取源(无本地语料) ----------------
+# 三类:热点爆款 / 传统哲学 / 小众潜力 —— 全部来自线上真实信号
+
+SCORE_THRESHOLD = 7.0  # 入库门槛:严选,低于此分不存(需求方 2026-10 定为 7 分)
+
+
+def fetch_bili_hot(limit: int = 15) -> list[dict]:
+    """B站综合热门榜(公开接口+buvid3):高爆火款语料"""
+    from uuid import uuid4
+
+    req = urllib.request.Request(
+        "https://api.bilibili.com/x/web-interface/popular?ps=20&pn=1",
+        headers={
+            "User-Agent": _UA,
+            "Referer": "https://www.bilibili.com/",
+            "Cookie": f"buvid3={uuid4().hex}-infoc;",
+            "Accept": "application/json",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=15) as r:
+        d = json.loads(r.read().decode("utf-8"))
+    out = []
+    for it in (d.get("data") or {}).get("list") or []:
+        title = (it.get("title") or "").strip()
+        if not title:
+            continue
+        stat = it.get("stat") or {}
+        out.append(
+            {
+                "source": "bili_hot",
+                "category": "热点爆款",
+                "title": title,
+                "content": f"UP:{(it.get('owner') or {}).get('name', '?')} 播放{stat.get('view', '?')} 藏{stat.get('favorite', '?')}",
+                "url": f"https://www.bilibili.com/video/{it.get('bvid')}",
+            }
+        )
+    return out[:limit]
+
+
+def fetch_bili_philosophy(limit: int = 15, keyword: str = "哲学") -> list[dict]:
+    """B站哲学区搜索(按播放排序):传统哲学/思辨语料,经过市场验证的选题池"""
+    from uuid import uuid4
+
+    req = urllib.request.Request(
+        "https://api.bilibili.com/x/web-interface/search/type"
+        f"?search_type=video&keyword={urllib.parse.quote(keyword)}&order=click&page=1",
+        headers={
+            "User-Agent": _UA,
+            "Referer": "https://search.bilibili.com/",
+            "Cookie": f"buvid3={uuid4().hex}-infoc;",
+            "Accept": "application/json",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=15) as r:
+        d = json.loads(r.read().decode("utf-8"))
+    out = []
+    for it in (d.get("data") or {}).get("result") or []:
+        title = re.sub(r"<[^>]+>", "", it.get("title") or "").strip()
+        if not title:
+            continue
+        out.append(
+            {
+                "source": "bili_philosophy",
+                "category": "传统哲学",
+                "title": title,
+                "content": f"UP:{it.get('author', '?')} 播放{it.get('play', '?')}",
+                "url": it.get("arcurl") or "https://search.bilibili.com",
+            }
+        )
+    return out[:limit]
+
+
+def fetch_v2ex(limit: int = 15) -> list[dict]:
+    """V2EX 热帖(程序员社区):小众潜力语料,贴创作者应届程序员身份"""
+    d = _get_json("https://www.v2ex.com/api/topics/hot.json")
+    out = []
+    for it in d or []:
+        title = (it.get("title") or "").strip()
+        if not title:
+            continue
+        out.append(
+            {
+                "source": "v2ex",
+                "category": "小众潜力",
+                "title": title,
+                "content": f"{it.get('replies', 0)} 回复 · 节点:{(it.get('node') or {}).get('title', '?')}",
+                "url": it.get("url") or "https://v2ex.com",
+            }
+        )
+    return out[:limit]
+
+
+def fetch_baidu_hot(limit: int = 20) -> list[dict]:
+    """百度实时热搜(公开接口):热点爆款语料"""
+    d = _get_json("https://top.baidu.com/api/board?platform=wise&tab=realtime")
+    out = []
+    for it in (d.get("data") or {}).get("cards") or []:
+        for c in it.get("content") or []:
+            word = (c.get("word") or c.get("query") or "").strip()
+            if not word:
+                continue
+            out.append(
+                {
+                    "source": "baidu_hot",
+                    "category": "热点爆款",
+                    "title": word,
+                    "content": f"热度 {c.get('hotScore', '?')}",
+                    "url": c.get("url") or f"https://www.baidu.com/s?wd={urllib.parse.quote(word)}",
+                }
+            )
+    return out[:limit]
+
+
+def fetch_hackernews(limit: int = 15) -> list[dict]:
+    """HackerNews 首页(Algolia 公开接口):英文科技小众潜力语料"""
+    d = _get_json("https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30")
+    out = []
+    for it in d.get("hits") or []:
+        title = (it.get("title") or "").strip()
+        if not title:
+            continue
+        out.append(
+            {
+                "source": "hackernews",
+                "category": "小众潜力",
+                "title": title,
+                "content": f"{it.get('points', 0)} 赞 · {it.get('num_comments', 0)} 评论",
+                "url": it.get("url") or f"https://news.ycombinator.com/item?id={it.get('objectID')}",
+            }
+        )
+    return out[:limit]
+
+
+# 分类归属:老源固定映射(入库与回填共用)
+CATEGORY_OF_SOURCE = {
+    "zhihu_hot": "热点爆款",
+    "weibo_hot": "热点爆款",
+    "baidu_hot": "热点爆款",
+    "bili_hot": "热点爆款",
+    "bili_philosophy": "传统哲学",
+    "hitokoto": "传统哲学",
+    "v2ex": "小众潜力",
+    "hackernews": "小众潜力",
+}
 
 RULE_KEYS = {
     "relevance": ["哲学", "意义", "自由", "思考", "认知", "尼采", "叔本华", "存在", "虚无", "理性",
@@ -129,8 +272,8 @@ def _rule_score(item: dict) -> dict:
     }
 
 
-def _llm_score(items: list[dict]) -> list[dict] | None:
-    """批量打分:返回与入参等长的评分列表;失败返回 None"""
+def _llm_score_batch(items: list[dict]) -> list[dict] | None:
+    """单批打分(≤30 条,控制输出 token 上限);失败返回 None"""
     listing = "\n".join(
         f"{i}. {it['title']} | {(it.get('content') or '')[:60]} | 来源:{it['source']}"
         for i, it in enumerate(items)
@@ -170,6 +313,17 @@ def _llm_score(items: list[dict]) -> list[dict] | None:
     return out
 
 
+def _llm_score(items: list[dict]) -> list[dict] | None:
+    """分批打分(每批 30 条防输出超限);任一批失败 → 整体降级规则"""
+    out: list[dict] = []
+    for i in range(0, len(items), 30):
+        batch = _llm_score_batch(items[i : i + 30])
+        if batch is None:
+            return None
+        out.extend(batch)
+    return out
+
+
 def rescore_pending(limit: int = 60) -> dict:
     """用最新画像重新给「待用」素材打分(建议文案会按新身份改写)"""
     rows = db.conn().execute(
@@ -183,22 +337,38 @@ def rescore_pending(limit: int = 60) -> dict:
     scores = _llm_score(items)
     engine = "llm" if scores else "rule"
     c = db.conn()
+    dropped = 0
     for r, sc in zip(rows, scores or [_rule_score(x) for x in items], strict=True):
+        if (sc["score"] or 0) < SCORE_THRESHOLD:
+            c.execute("UPDATE materials SET status='丢弃' WHERE id=?", (r["id"],))  # 重评后掉出严选线
+            dropped += 1
+            continue
         c.execute(
             "UPDATE materials SET relevance=?, conflict=?, save_potential=?, score=?, suggestion=?, tags=? WHERE id=?",
             (sc["relevance"], sc["conflict"], sc["save_potential"], sc["score"], sc["suggestion"], sc["tags"], r["id"]),
         )
     c.commit()
-    return {"rescored": len(rows), "engine": engine}
+    return {"rescored": len(rows), "dropped": dropped, "engine": engine, "threshold": SCORE_THRESHOLD}
 
 
 def fetch_and_score() -> dict:
-    """抓取全部信源 → 打分 → 入库(url 去重幂等)"""
+    """抓取全部信源 → 打分 → 严选入库(≥7.5 分;url 去重幂等)"""
     db.init_db()
+    # 分类自愈回填(强制覆盖,幂等)
+    for src, cat in CATEGORY_OF_SOURCE.items():
+        db.conn().execute("UPDATE materials SET category=? WHERE source=?", (cat, src))
+    db.conn().commit()
+
     items = []
-    for fn in (fetch_zhihu_hot, fetch_weibo_hot, fetch_hitokoto):
+    for fn in (
+        fetch_zhihu_hot, fetch_weibo_hot, fetch_baidu_hot, fetch_bili_hot,
+        fetch_bili_philosophy, fetch_v2ex, fetch_hackernews, fetch_hitokoto,
+    ):
         try:
-            items.extend(fn())
+            got = fn()
+            for it in got:
+                it.setdefault("category", CATEGORY_OF_SOURCE.get(it["source"], "热点爆款"))
+            items.extend(got)
         except Exception as e:  # noqa: BLE001 - 单信源失败不阻断
             print(f"[materials] {fn.__name__} 失败: {e}")
     if not items:
@@ -208,18 +378,21 @@ def fetch_and_score() -> dict:
     engine = "llm" if scores else "rule"
     now = datetime.now().isoformat(timespec="seconds")
     c = db.conn()
-    new_count = 0
+    new_count = kept = 0
     for it, sc in zip(items, scores or [_rule_score(x) for x in items], strict=True):
+        if (sc["score"] or 0) < SCORE_THRESHOLD:
+            continue  # 严选:低于门槛不入库
+        kept += 1
         cur = c.execute(
-            """INSERT OR IGNORE INTO materials(source, title, content, url,
+            """INSERT OR IGNORE INTO materials(source, category, title, content, url,
                  relevance, conflict, save_potential, score, suggestion, tags, status, created_at)
-               VALUES(?,?,?,?,?,?,?,?,?,?, '待用', ?)""",
+               VALUES(?,?,?,?,?,?,?,?,?,?,?, '待用', ?)""",
             (
-                it["source"], it["title"], it.get("content"), it["url"],
+                it["source"], it["category"], it["title"], it.get("content"), it["url"],
                 sc["relevance"], sc["conflict"], sc["save_potential"], sc["score"],
                 sc["suggestion"], sc["tags"], now,
             ),
         )
         new_count += cur.rowcount
     c.commit()
-    return {"fetched": len(items), "new": new_count, "engine": engine}
+    return {"fetched": len(items), "kept": kept, "new": new_count, "engine": engine, "threshold": SCORE_THRESHOLD}

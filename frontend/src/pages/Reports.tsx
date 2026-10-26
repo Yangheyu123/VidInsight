@@ -66,7 +66,7 @@ export function Reports() {
 
   if (detail) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <div className="mx-auto max-w-7xl px-6 py-10 lg:px-10">
         <button
           onClick={() => setDetail(null)}
           className="mb-6 flex items-center gap-2 text-body-md text-body hover:text-ink"
@@ -82,7 +82,7 @@ export function Reports() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-7xl px-6 py-10 lg:px-10">
       <div className="eyebrow">Reports</div>
       <div className="mt-1 flex flex-wrap items-end justify-between gap-4">
         <h1 className="text-heading-lg text-ink">报告中心</h1>

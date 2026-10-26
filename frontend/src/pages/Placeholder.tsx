@@ -18,7 +18,7 @@ export function Placeholder({
   bullets: string[]
 }) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+    <div className="mx-auto max-w-7xl px-6 py-24 lg:px-10">
       <div className="eyebrow">{eyebrow}</div>
       <h1 className="mt-1 text-heading-lg text-ink">{title}</h1>
       <p className="mt-2 max-w-xl text-body-lg text-body">{desc}</p>

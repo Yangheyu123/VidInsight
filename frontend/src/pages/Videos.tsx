@@ -129,7 +129,7 @@ export function Videos() {
   const templateName = (id: string | null) => templates.find((t) => t.id === id)?.name ?? '—'
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-7xl px-6 py-10 lg:px-10">
       {/* 页头 */}
       <div className="eyebrow">Videos</div>
       <div className="mt-1 flex flex-wrap items-end justify-between gap-4">

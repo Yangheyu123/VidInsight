@@ -146,6 +146,17 @@ def _parse_templates(md: str) -> list[dict]:
         return []
 
 
+def _adopted_lines() -> str:
+    """闭环:已采用(已用)素材 → 报告的选题输入,让选题方向落在已锁定方向上"""
+    rows = db.conn().execute(
+        "SELECT title, suggestion FROM materials WHERE status='已用' ORDER BY score DESC LIMIT 10"
+    ).fetchall()
+    if not rows:
+        return ""
+    lines = "\n".join(f"- 《{r['title']}》 既有评估:{(r['suggestion'] or '')[:60]}" for r in rows)
+    return f"\n创作者已采用的选题素材(选题方向章节必须优先围绕它们给执行方案):\n{lines}\n"
+
+
 def generate(scope: str = "own") -> dict:
     """生成拆解报告并存库;scope=own(自有数据)/ bench(对标数据)。
     返回 {report_id, engine, templates}"""
@@ -173,7 +184,7 @@ def generate(scope: str = "own") -> dict:
         )
 
     user_prompt = (
-        head + f"{lines}\n\n请基于以上真实数据输出拆解报告,Markdown 固定章节:\n"
+        head + f"{lines}\n{_adopted_lines()}\n请基于以上真实数据输出拆解报告,Markdown 固定章节:\n"
         + "\n".join(f"## {s}" for s in sections)
         + "\n\n每章节必须结合上面数据的真实规律给结论;结论一律引用具体数字(播放/点赞/收藏的绝对值,不要只给百分比);"
         "报告面向可直接模仿执行。\n"

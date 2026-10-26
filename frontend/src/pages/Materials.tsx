@@ -9,6 +9,7 @@ import { useJob } from './Reports'
 interface Material {
   id: number
   source: string
+  category?: string | null
   title: string
   content: string | null
   url: string | null
@@ -23,7 +24,15 @@ interface Material {
 }
 
 const FILTERS = ['全部', '待用', '已用', '丢弃']
-const SOURCE_LABEL: Record<string, string> = { zhihu_hot: '知乎热榜', hitokoto: '一言' }
+const CATEGORIES = ['全部', '热点爆款', '传统哲学', '小众潜力']
+const SOURCE_LABEL: Record<string, string> = {
+  zhihu_hot: '知乎热榜',
+  weibo_hot: '微博热搜',
+  bili_hot: 'B站热门',
+  bili_philosophy: 'B站哲学区',
+  hitokoto: '一言',
+  v2ex: 'V2EX',
+}
 
 /** 三维评分条:墨色填充,10 分满格 */
 function ScoreBar({ label, v }: { label: string; v: number | null }) {
@@ -40,6 +49,10 @@ function ScoreBar({ label, v }: { label: string; v: number | null }) {
 
 export function Materials() {
   const [filter, setFilter] = useState('待用')
+  const [category, setCategory] = useState('全部')
+  const [page, setPage] = useState(1)
+  const [pages, setPages] = useState(1)
+  const [total, setTotal] = useState(0)
   const [list, setList] = useState<Material[]>([])
   const job = useJob(
     'materials',
@@ -51,12 +64,19 @@ export function Materials() {
   )
 
   const load = useCallback(() => {
-    const q = filter === '全部' ? '' : `?status=${encodeURIComponent(filter)}`
-    void fetch(`/api/materials${q}`)
+    const params = new URLSearchParams()
+    if (filter !== '全部') params.set('status', filter)
+    if (category !== '全部') params.set('category', category)
+    params.set('page', String(page))
+    void fetch(`/api/materials?${params}`)
       .then((r) => r.json())
-      .then(setList)
+      .then((d: { items: Material[]; pages: number; total: number }) => {
+        setList(d.items ?? [])
+        setPages(d.pages ?? 1)
+        setTotal(d.total ?? 0)
+      })
       .catch(() => setList([]))
-  }, [filter])
+  }, [filter, category, page])
   useEffect(load, [load])
 
   const setStatus = async (id: number, status: string) => {
@@ -69,7 +89,7 @@ export function Materials() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-7xl px-6 py-10 lg:px-10">
       <div className="eyebrow">Materials</div>
       <div className="mt-1 flex flex-wrap items-end justify-between gap-4">
         <h1 className="text-heading-lg text-ink">素材库</h1>
@@ -84,14 +104,35 @@ export function Materials() {
           {rescoreJob.running ? '重评中…' : '按画像重评'}
         </button>
       </div>
-      <p className="mt-2 text-body-md text-mute">知乎热榜 + 一言 · LLM 按 相关性 × 冲突感 × 收藏潜力 打分</p>
+      <p className="mt-2 text-body-md text-mute">八源抓取 · LLM 三维打分 · 仅收 7 分以上</p>
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        {CATEGORIES.map((c) => (
+          <CategoryPill
+            key={c}
+            active={category === c}
+            onClick={() => {
+              setCategory(c)
+              setPage(1)
+            }}
+          >
+            {c}
+          </CategoryPill>
+        ))}
+        <span className="mx-1 hidden h-5 w-px bg-hairline sm:block" />
         {FILTERS.map((f) => (
-          <CategoryPill key={f} active={filter === f} onClick={() => setFilter(f)}>
+          <CategoryPill
+            key={f}
+            active={filter === f}
+            onClick={() => {
+              setFilter(f)
+              setPage(1)
+            }}
+          >
             {f}
           </CategoryPill>
         ))}
+        <span className="ml-auto font-mono text-[13px] text-mute">{total} 条</span>
       </div>
 
       <Card className="mt-4" padded={false}>
@@ -104,6 +145,11 @@ export function Materials() {
                     <span className="rounded-full border border-hairline px-2 py-0.5 text-body-sm text-body">
                       {SOURCE_LABEL[m.source] ?? m.source}
                     </span>
+                    {m.category && (
+                      <span className="rounded-full bg-hairline-soft px-2 py-0.5 text-body-sm text-body">
+                        {m.category}
+                      </span>
+                    )}
                     <span className="text-body-sm text-mute">{m.status}</span>
                   </div>
                   <a
@@ -153,6 +199,29 @@ export function Materials() {
           )}
         </div>
       </Card>
+
+      {/* 分页器 */}
+      {pages > 1 && (
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="btn-press inline-flex h-8 items-center rounded-square border border-hairline bg-elevated px-3 text-label-sm text-ink disabled:opacity-40"
+          >
+            ← 上一页
+          </button>
+          <span className="font-mono text-[13px] text-body">
+            {page} / {pages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(pages, p + 1))}
+            disabled={page >= pages}
+            className="btn-press inline-flex h-8 items-center rounded-square border border-hairline bg-elevated px-3 text-label-sm text-ink disabled:opacity-40"
+          >
+            下一页 →
+          </button>
+        </div>
+      )}
     </div>
   )
 }
