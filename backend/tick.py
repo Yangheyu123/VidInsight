@@ -76,6 +76,10 @@ def tick() -> None:
         try:
             r = report.generate()
             print(f"[tick] 报告完成:{r}")
+            # 报告完成 → 自动刷新产线创作简报(闭环最后一跳)
+            from . import brief
+
+            print(f"[tick] 创作简报: {brief.build_brief()}")
         except Exception as e:  # noqa: BLE001
             print(f"[tick] 报告生成失败:{e}")
         _mark_next("report_weekly", 10080)

@@ -377,6 +377,14 @@ def scripts_own_api() -> dict:
     return own_scripts.harvest_own_scripts()
 
 
+@app.post("/api/brief/export")
+def brief_export() -> dict:
+    """创作简报:最新报告+模板+选题 → D:\\aivideo\\VIDEINSIGHT_BRIEF.md(产线 agent 必读)"""
+    from . import brief
+
+    return brief.build_brief()
+
+
 @app.get("/api/sync-status")
 def sync_status() -> dict:
     s = db.conn().execute("SELECT * FROM sources WHERE id=?", (ingest.SOURCE_ID,)).fetchone()
