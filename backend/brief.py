@@ -63,7 +63,7 @@ def build_brief() -> dict:
     ).fetchall()
 
     lines = [
-        f"# VidInsight 创作简报(自动生成 {datetime.now().strftime('%Y-%m-%d %H:%f')[:16]})",
+        f"# VidInsight 创作简报(自动生成 {datetime.now().strftime('%Y-%m-%d %H:%M')})",
         f"> 基于报告 #{report_row['id']}《{report_row['title']}》({report_row['engine']})。"
         "产线 agent 写新脚本前必读本文件;简报由中台每日自动刷新,勿手改。",
         "",

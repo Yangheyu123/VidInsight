@@ -262,4 +262,11 @@ def generate(scope: str = "own") -> dict:
                     ),
                 )
     c.commit()
+    # 报告落库 → 自动刷新产线创作简报(提示词随之更新)
+    try:
+        from . import brief
+
+        brief.build_brief()
+    except Exception:  # noqa: BLE001 - 简报失败不影响报告
+        pass
     return {"report_id": report_id, "engine": engine, "templates": len(saved)}

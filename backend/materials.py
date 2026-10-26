@@ -348,6 +348,12 @@ def rescore_pending(limit: int = 60) -> dict:
             (sc["relevance"], sc["conflict"], sc["save_potential"], sc["score"], sc["suggestion"], sc["tags"], r["id"]),
         )
     c.commit()
+    try:
+        from . import brief
+
+        brief.build_brief()
+    except Exception:  # noqa: BLE001
+        pass
     return {"rescored": len(rows), "dropped": dropped, "engine": engine, "threshold": SCORE_THRESHOLD}
 
 
@@ -395,4 +401,15 @@ def fetch_and_score() -> dict:
         )
         new_count += cur.rowcount
     c.commit()
+
+    def _refresh_brief() -> None:
+        """素材变化 → 刷新创作简报(已采用/待用选题随之更新)"""
+        try:
+            from . import brief
+
+            brief.build_brief()
+        except Exception:  # noqa: BLE001
+            pass
+
+    _refresh_brief()
     return {"fetched": len(items), "kept": kept, "new": new_count, "engine": engine, "threshold": SCORE_THRESHOLD}
