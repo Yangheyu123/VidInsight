@@ -69,6 +69,51 @@ function StateDot({ state }: { state: SyncStatus['state'] }) {
   return <span className={`inline-block size-1.5 rounded-full ${color}`} />
 }
 
+export type JobsState = {
+  report?: { running: boolean; progress?: { done: number; total: number; failed: number } | null }
+  materials?: { running: boolean }
+  radar?: { running: boolean; progress?: { done: number; total: number; failed: number } | null }
+  scripts?: { running: boolean }
+}
+
+const JOB_LABEL: Record<string, string> = {
+  report: '报告生成',
+  materials: '素材抓取',
+  radar: '雷达采集',
+  scripts: '脚本转写',
+}
+
+function JobStrip({ jobs }: { jobs: JobsState | null }) {
+  const running = Object.entries(jobs ?? {}).filter(([, v]) => v?.running)
+  if (!running.length) return null
+  return (
+    <div className="mt-2 space-y-2 border-t border-hairline pt-2.5">
+      {running.map(([key, v]) => {
+        const p = (v as { progress?: { done: number; total: number } | undefined })?.progress
+        const pct = p && p.total > 0 ? Math.round((p.done / p.total) * 100) : null
+        return (
+          <div key={key}>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-body-sm text-ink">
+                <span className="inline-block size-1.5 animate-pulse rounded-full bg-link" />
+                {JOB_LABEL[key] ?? key}
+              </span>
+              <span className="font-mono text-body-sm text-mute">
+                {pct != null && p ? `${p.done}/${p.total}` : '进行中'}
+              </span>
+            </div>
+            {pct != null && (
+              <div className="mt-1 h-1 overflow-hidden rounded-full bg-hairline">
+                <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${pct}%` }} />
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export function Sidebar({
   route,
   onRoute,
@@ -80,6 +125,7 @@ export function Sidebar({
   open,
   onClose,
   onOpenPalette,
+  jobs,
 }: {
   route: Route
   onRoute: (r: Route) => void
@@ -91,6 +137,7 @@ export function Sidebar({
   open: boolean
   onClose: () => void
   onOpenPalette: () => void
+  jobs?: JobsState | null
 }) {
   const nav = (
     <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
@@ -124,6 +171,7 @@ export function Sidebar({
   const status = (
     <div className="border-t border-hairline p-3">
       <div className="rounded-card border border-hairline bg-canvas p-3.5">
+        <JobStrip jobs={jobs ?? null} />
         <div className="flex items-center gap-2">
           {sync && <StateDot state={sync.state} />}
           <span className="font-mono text-xs text-body">
