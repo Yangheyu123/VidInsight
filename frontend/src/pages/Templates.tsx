@@ -48,8 +48,8 @@ export function Templates() {
     )
   }
 
-  const a = templates.find((t) => t.id === aId)
-  const b = templates.find((t) => t.id === bId)
+  const a = templates.find((t) => t.id === aId) ?? templates[0]
+  const b = templates.find((t) => t.id === bId) ?? templates[1] ?? templates[0]
 
   const compareData = useMemo(() => {
     if (!a || !b) return []

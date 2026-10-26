@@ -175,7 +175,7 @@ def generate(scope: str = "own") -> dict:
     user_prompt = (
         head + f"{lines}\n\n请基于以上真实数据输出拆解报告,Markdown 固定章节:\n"
         + "\n".join(f"## {s}" for s in sections)
-        + "\n\n每章节必须结合上面数据的真实规律给结论;数字只引用给定数据;"
+        + "\n\n每章节必须结合上面数据的真实规律给结论;结论一律引用具体数字(播放/点赞/收藏的绝对值,不要只给百分比);"
         "报告面向可直接模仿执行。\n"
         + JSON_INSTRUCTION.replace("{prefix}", prefix)
     )

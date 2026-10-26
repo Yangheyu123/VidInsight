@@ -48,7 +48,6 @@ cd ../..
 
 # 2. 后端
 py -m venv .venv && .venv/Scripts/pip install -r backend/requirements.txt
-copy .env.example .env                  # 填入你的 LLM_API_KEY(不填则 AI 功能降级为规则版)
 
 # 3. 前端
 cd frontend && pnpm install && pnpm dev # http://localhost:5173
@@ -64,14 +63,6 @@ schtasks /Create /TN VidInsightTick /SC DAILY /ST 09:05 /TR "项目路径\script
 - 页面未显示的指标如实存 `null`,不推导不编造
 - 爆款判定:播放 ≥ 3 × 账号均值(自有与对标同公式)
 - 天级趋势 = 相邻快照正增量,自接入日起逐日累积
-
-## 配置
-
-| 环境变量 | 说明 | 默认 |
-|---|---|---|
-| `LLM_API_KEY` | BigModel(智谱)API Key,不填则 AI 功能走规则降级 | — |
-| `LLM_BASE_URL` | OpenAI 兼容端点 | `https://open.bigmodel.cn/api/coding/paas/v4` |
-| `LLM_MODEL` | 模型名 | `glm-5.3-flash` |
 
 ## 路线图
 
