@@ -67,6 +67,14 @@ export function Videos() {
       }),
   )
 
+  // 手动投喂对标(抖音爆款)
+  const [manualOpen, setManualOpen] = useState(false)
+  const [mTitle, setMTitle] = useState('')
+  const [mViews, setMViews] = useState('')
+  const [mLikes, setMLikes] = useState('')
+  const [mFavs, setMFavs] = useState('')
+  const [mComments, setMComments] = useState('')
+
   // 抽屉打开时拉取该作品的天级真实曲线,不足 2 点则回退衰减模型
   useEffect(() => {
     if (!selected) return
@@ -148,34 +156,81 @@ export function Videos() {
         </div>
       </div>
 
-      {/* 对标模式:雷达采集条 */}
+      {/* 对标模式:雷达采集 + 手动投喂 */}
       {scope !== 'own' && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-card border border-hairline bg-elevated p-2.5">
-          <span className="eyebrow ml-1">Radar</span>
-          <div className="flex rounded-square border border-hairline p-0.5">
-            {(['bilibili', 'youtube'] as const).map((p) => (
+        <div className="mt-4 space-y-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-card border border-hairline bg-elevated p-2.5">
+            <span className="eyebrow ml-1">Radar</span>
+            <div className="flex rounded-square border border-hairline p-0.5">
+              {(['bilibili', 'youtube'] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPlat(p)}
+                  className={`h-8 rounded-[4px] px-3 font-mono text-[13px] transition-colors ${
+                    plat === p ? 'bg-primary text-white' : 'text-body hover:text-ink'
+                  }`}
+                >
+                  {p === 'bilibili' ? 'B站' : 'YouTube'}
+                </button>
+              ))}
+            </div>
+            <div className="w-52">
+              <TextInput value={kw} onChange={setKw} placeholder="关键词…" />
+            </div>
+            <button
+              onClick={() => radarJob.trigger(load)}
+              disabled={radarJob.running}
+              className="inline-flex h-9 items-center rounded-square bg-primary px-3 text-label-sm text-white transition-colors hover:bg-ink disabled:opacity-50"
+            >
+              {radarJob.running ? '采集中(限流慢采)…' : '雷达采集'}
+            </button>
+            <button
+              onClick={() => setManualOpen(!manualOpen)}
+              className="inline-flex h-9 items-center rounded-square border border-hairline px-3 text-label-sm text-ink transition-colors hover:bg-hairline-soft"
+            >
+              {manualOpen ? '收起手动投喂' : '手动投喂(抖音对标)'}
+            </button>
+          </div>
+          {manualOpen && (
+            <div className="flex flex-wrap items-center gap-2 rounded-card border border-hairline bg-canvas p-2.5">
+              <span className="eyebrow ml-1">Manual</span>
+              <div className="min-w-56 flex-1">
+                <TextInput value={mTitle} onChange={setMTitle} placeholder="对标视频标题(抖音爆款粘贴这里)" />
+              </div>
+              {(
+                [
+                  ['播放', mViews, setMViews],
+                  ['赞', mLikes, setMLikes],
+                  ['藏', mFavs, setMFavs],
+                  ['评', mComments, setMComments],
+                ] as const
+              ).map(([label, val, set]) => (
+                <div key={label} className="w-24">
+                  <TextInput value={val} onChange={set} placeholder={label} />
+                </div>
+              ))}
               <button
-                key={p}
-                onClick={() => setPlat(p)}
-                className={`h-8 rounded-[4px] px-3 font-mono text-[13px] transition-colors ${
-                  plat === p ? 'bg-primary text-white' : 'text-body hover:text-ink'
-                }`}
+                onClick={async () => {
+                  if (!mTitle.trim() || !mViews.trim()) return
+                  await fetch('/api/videos/manual', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      title: mTitle, views: Number(mViews) || 0, likes: Number(mLikes) || 0,
+                      favorites: Number(mFavs) || 0, comments: Number(mComments) || 0,
+                      platform: 'douyin',
+                    }),
+                  })
+                  setMTitle(''); setMViews(''); setMLikes(''); setMFavs(''); setMComments('')
+                  void load()
+                }}
+                className="inline-flex h-9 items-center rounded-square bg-primary px-3 text-label-sm text-white hover:bg-ink"
               >
-                {p === 'bilibili' ? 'B站' : 'YouTube'}
+                添加
               </button>
-            ))}
-          </div>
-          <div className="w-52">
-            <TextInput value={kw} onChange={setKw} placeholder="关键词…" />
-          </div>
-          <button
-            onClick={() => radarJob.trigger(load)}
-            disabled={radarJob.running}
-            className="inline-flex h-9 items-center rounded-square bg-primary px-3 text-label-sm text-white transition-colors hover:bg-ink disabled:opacity-50"
-          >
-            {radarJob.running ? '采集中(限流慢采)…' : '雷达采集'}
-          </button>
-          <span className="text-body-sm text-mute">yt-dlp 两阶段 · B站2-4s/条限流</span>
+              <span className="text-body-sm text-mute">别人账号的公开数据,四项够 LLM 拆解</span>
+            </div>
+          )}
         </div>
       )}
 
