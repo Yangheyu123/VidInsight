@@ -13,6 +13,7 @@ import urllib.request
 from datetime import datetime
 
 from . import db, llm
+from .persona import PERSONA
 
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 
@@ -103,7 +104,8 @@ def fetch_weibo_hot(limit: int = 20) -> list[dict]:
 
 RULE_KEYS = {
     "relevance": ["哲学", "意义", "自由", "思考", "认知", "尼采", "叔本华", "存在", "虚无", "理性",
-                   "孤独", "迷茫", "焦虑", "内卷", "人生", "时间", "选择", "真相", "思考", "智慧", "幸福"],
+                   "孤独", "迷茫", "焦虑", "内卷", "人生", "时间", "选择", "真相", "智慧", "幸福",
+                   "程序员", "应届", "秋招", "实习", "毕业", "考研", "offer", "工科", "代码"],
     "conflict": ["反而", "其实", "真相", "骗局", "谎言", "陷阱", "错觉", "才是", "并非", "敢不敢", "为什么"],
     "save_potential": ["收藏", "建议", "清单", "方法", "一句话", "记住", "金句", "值得", "改变"],
 }
@@ -134,10 +136,12 @@ def _llm_score(items: list[dict]) -> list[dict] | None:
         for i, it in enumerate(items)
     )
     system = (
-        "你是短视频选题评估器。创作者赛道:青年思辨哲学短视频,受众18-23岁男性,目标高收藏率。"
-        '对每条素材输出JSON:{"i":序号,"relevance":赛道相关性0-10,"conflict":冲突感/反差0-10,'
-        '"save_potential":被收藏潜力0-10,"suggestion":"一句话改写建议(怎么变成思辨类选题)","tags":"标签,逗号分隔"}。'
-        "只输出JSON数组,不要其他文字。"
+        f"你是短视频选题评估器。{PERSONA}"
+        '对每条素材输出JSON:{"i":序号,"relevance":0-10(=该创作者能否用应届生/程序员第一人称把它转成思辨选题),'
+        '"conflict":冲突感/反差0-10,'
+        '"save_potential":互动潜力0-10(点赞冲动+评论话头+收藏理由,三合一综合),'
+        '"suggestion":"一句话:怎么用他的身份(程序员/应届生/秋招)把这个素材做成思辨短视频,并点出观众为什么会点赞/评论/收藏",'
+        '"tags":"标签,逗号分隔"}。只输出JSON数组,不要其他文字。'
     )
     raw = llm.chat(system, listing, temperature=0.2)
     if not raw:
@@ -164,6 +168,28 @@ def _llm_score(items: list[dict]) -> list[dict] | None:
             }
         )
     return out
+
+
+def rescore_pending(limit: int = 60) -> dict:
+    """用最新画像重新给「待用」素材打分(建议文案会按新身份改写)"""
+    rows = db.conn().execute(
+        "SELECT id, title, content, source FROM materials WHERE status='待用' "
+        "ORDER BY score DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    if not rows:
+        return {"rescored": 0, "engine": "none"}
+    items = [{"source": r["source"], "title": r["title"], "content": r["content"] or ""} for r in rows]
+    scores = _llm_score(items)
+    engine = "llm" if scores else "rule"
+    c = db.conn()
+    for r, sc in zip(rows, scores or [_rule_score(x) for x in items], strict=True):
+        c.execute(
+            "UPDATE materials SET relevance=?, conflict=?, save_potential=?, score=?, suggestion=?, tags=? WHERE id=?",
+            (sc["relevance"], sc["conflict"], sc["save_potential"], sc["score"], sc["suggestion"], sc["tags"], r["id"]),
+        )
+    c.commit()
+    return {"rescored": len(rows), "engine": engine}
 
 
 def fetch_and_score() -> dict:

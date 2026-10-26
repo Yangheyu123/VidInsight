@@ -318,10 +318,10 @@ export function Videos() {
         <>
           <button
             aria-label="关闭"
-            className="fixed inset-0 z-40 h-full w-full cursor-default bg-black/5"
+            className="fade-enter fixed inset-0 z-40 h-full w-full cursor-default bg-black/5"
             onClick={() => setSelected(null)}
           />
-          <aside className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[460px] flex-col overflow-y-auto border-l border-hairline bg-elevated shadow-float">
+          <aside className="drawer-enter fixed right-0 top-0 z-50 flex h-full w-full max-w-[460px] flex-col overflow-y-auto border-l border-hairline bg-elevated shadow-float">
             <div className="flex items-center justify-between border-b border-hairline px-8 py-4">
               <span className="eyebrow">Video Detail</span>
               <button

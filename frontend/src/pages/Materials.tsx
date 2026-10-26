@@ -45,6 +45,10 @@ export function Materials() {
     'materials',
     () => fetch('/api/materials/fetch', { method: 'POST' }),
   )
+  const rescoreJob = useJob(
+    'materials',
+    () => fetch('/api/materials/rescore', { method: 'POST' }),
+  )
 
   const load = useCallback(() => {
     const q = filter === '全部' ? '' : `?status=${encodeURIComponent(filter)}`
@@ -72,6 +76,13 @@ export function Materials() {
         <SquarePrimary onClick={() => job.trigger(load)} disabled={job.running}>
           {job.running ? '抓取打分中…' : '抓取新素材'}
         </SquarePrimary>
+        <button
+          onClick={() => rescoreJob.trigger(load)}
+          disabled={rescoreJob.running}
+          className="inline-flex h-8 items-center rounded-square border border-hairline bg-elevated px-3 text-label-sm text-ink transition-colors hover:bg-hairline-soft disabled:opacity-50"
+        >
+          {rescoreJob.running ? '重评中…' : '按画像重评'}
+        </button>
       </div>
       <p className="mt-2 text-body-md text-mute">知乎热榜 + 一言 · LLM 按 相关性 × 冲突感 × 收藏潜力 打分</p>
 

@@ -77,7 +77,7 @@ export function Templates() {
       {/* 模板卡片:卡顶 3px 渐变强调线(系统允许的插画级点缀) */}
       <div className="mt-8 grid gap-4 md:grid-cols-3">
         {templates.map((t) => (
-          <Card key={t.id} padded={false} className="overflow-hidden">
+          <Card key={t.id} padded={false} className="lift overflow-hidden">
             <div className={`h-[3px] w-full ${ACCENT_LINE[t.accent]}`} aria-hidden />
             <div className="p-8">
               <div className="flex items-baseline justify-between">

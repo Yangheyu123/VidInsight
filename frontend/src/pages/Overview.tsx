@@ -37,12 +37,14 @@ export function Overview() {
   const [days, setDays] = useState<(typeof RANGES)[number]>(30)
   const [daily, setDaily] = useState<DailyStat[]>([])
   const [videos, setVideos] = useState<Video[]>([])
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     void (async () => {
       const ds = await getSource()
       setDaily(await ds.dailyStats(days))
       setVideos(await ds.videos())
+      setLoaded(true)
     })()
   }, [days])
 
@@ -57,6 +59,9 @@ export function Overview() {
     )
     const avg = (xs: (number | null)[]) =>
       xs.filter((x): x is number => x != null).reduce((s, x) => s + x, 0) / (xs.length || 1)
+    // 互动三率:点赞/评论/收藏(÷播放)——KPI 卡的三合一
+    const interOf = (v: Video) =>
+      v.views ? (v.likes + v.comments + v.favorites) / v.views : null
     return {
       plays: cur.reduce((s, d) => s + d.plays, 0),
       playsDelta: deltaOf(
@@ -71,9 +76,10 @@ export function Overview() {
       completion: avg(recent.map((v) => v.completionRate)),
       completion5s: avg(recent.map((v) => v.completion5sRate)),
       skip2s: avg(recent.map((v) => v.skip2sRate ?? null)),
-      favRate: avg(
-        recent.map((v) => (v.views ? v.favorites / v.views : null)),
-      ),
+      interRate: avg(recent.map(interOf)),
+      likeRate: avg(recent.map((v) => (v.views ? v.likes / v.views : null))),
+      commentRate: avg(recent.map((v) => (v.views ? v.comments / v.views : null))),
+      favRate: avg(recent.map((v) => (v.views ? v.favorites / v.views : null))),
     }
   }, [daily, videos, days])
 
@@ -115,8 +121,21 @@ export function Overview() {
       </section>
 
       <div className="mx-auto max-w-6xl space-y-8 px-4 py-10 sm:px-6">
-        {/* 无数据空态(真实模式下后端未连接/库为空;绝不显示模拟数字) */}
-        {videos.length === 0 ? (
+        {/* 加载骨架屏(真实数据到达前的呼吸感) */}
+        {!loaded ? (
+          <>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="rounded-card border border-hairline bg-elevated p-8">
+                  <div className="skeleton h-4 w-16 rounded-[3px]" />
+                  <div className="skeleton mt-4 h-10 w-24 rounded-[6px]" />
+                  <div className="skeleton mt-3 h-4 w-20 rounded-[3px]" />
+                </div>
+              ))}
+            </div>
+            <div className="skeleton h-80 rounded-card" />
+          </>
+        ) : videos.length === 0 ? (
           <Card>
             <div className="eyebrow">No Data</div>
             <h2 className="mt-1 text-heading-md text-ink">暂无作品数据</h2>
@@ -132,13 +151,26 @@ export function Overview() {
           </Card>
         ) : (
           <>
-        {/* ---- 六指标卡 ---- */}
+        {/* ---- 六指标卡(KPI=互动三率 ---- */}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
           <MetricCard label="播放量" value={fmtNum(stats.plays)} delta={stats.playsDelta} sub={`${days} 天`} />
           <MetricCard label="完播率" value={fmtPct(stats.completion)} />
           <MetricCard label="5s完播" value={fmtPct(stats.completion5s)} />
           <MetricCard label="2秒跳出" value={fmtPct(stats.skip2s)} />
-          <MetricCard label="收藏率" value={fmtPct(stats.favRate)} highlight />
+          <MetricCard
+            label="互动率 · KPI"
+            value={fmtPct(stats.interRate)}
+            highlight
+            detail={
+              <>
+                <span>赞 {fmtPct(stats.likeRate)}</span>
+                <span className="text-white/30">·</span>
+                <span>评 {fmtPct(stats.commentRate)}</span>
+                <span className="text-white/30">·</span>
+                <span>藏 {fmtPct(stats.favRate)}</span>
+              </>
+            }
+          />
           <MetricCard label="涨粉" value={fmtNum(stats.followers)} delta={stats.followersDelta} sub={`${days} 天`} />
         </div>
 

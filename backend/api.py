@@ -303,6 +303,12 @@ def materials_fetch() -> dict:
     return _run_job("materials", materials.fetch_and_score)
 
 
+@app.post("/api/materials/rescore")
+def materials_rescore() -> dict:
+    """按最新创作者画像重打「待用」素材分"""
+    return _run_job("materials", materials.rescore_pending)
+
+
 class MaterialPatch(BaseModel):
     status: str  # 待用 / 已用 / 丢弃
 

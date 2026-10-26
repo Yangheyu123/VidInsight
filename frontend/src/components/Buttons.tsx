@@ -12,7 +12,7 @@ type BaseProps = ButtonHTMLAttributes<HTMLButtonElement>
 export function SquarePrimary({ children, className = '', ...rest }: BaseProps) {
   return (
     <button
-      className={`inline-flex h-8 items-center gap-1.5 rounded-square bg-primary px-3 text-label-sm text-white transition-colors hover:bg-ink disabled:opacity-40 ${className}`}
+      className={`btn-press inline-flex h-8 items-center gap-1.5 rounded-square bg-primary px-3 text-label-sm text-white hover:bg-ink disabled:opacity-40 ${className}`}
       {...rest}
     >
       {children}
@@ -24,7 +24,7 @@ export function SquarePrimary({ children, className = '', ...rest }: BaseProps) 
 export function SquareGhost({ children, className = '', ...rest }: BaseProps) {
   return (
     <button
-      className={`inline-flex h-8 items-center gap-1.5 rounded-square border border-hairline bg-elevated px-3 text-label-sm text-ink transition-colors hover:bg-hairline-soft disabled:opacity-40 ${className}`}
+      className={`btn-press inline-flex h-8 items-center gap-1.5 rounded-square border border-hairline bg-elevated px-3 text-label-sm text-ink hover:bg-hairline-soft disabled:opacity-40 ${className}`}
       {...rest}
     >
       {children}
@@ -41,7 +41,7 @@ export function CategoryPill({
 }: BaseProps & { active?: boolean }) {
   return (
     <button
-      className={`inline-flex h-9 items-center rounded-[64px] px-4 text-label-sm transition-colors ${
+      className={`btn-press inline-flex h-9 items-center rounded-[64px] px-4 text-label-sm ${
         active
           ? 'bg-primary text-white'
           : 'border border-hairline bg-elevated text-ink hover:bg-hairline-soft'
@@ -57,7 +57,7 @@ export function CategoryPill({
 export function PillPrimary({ children, className = '', ...rest }: BaseProps) {
   return (
     <button
-      className={`inline-flex h-11 items-center rounded-full bg-primary px-4 text-body-lg text-white transition-colors hover:bg-ink disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
+      className={`btn-press inline-flex h-11 items-center rounded-full bg-primary px-4 text-body-lg text-white hover:bg-ink disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
       {...rest}
     >
       {children}
