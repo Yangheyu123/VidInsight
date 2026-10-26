@@ -38,6 +38,7 @@ function deltaOf(cur: number[], prev: number[]): number | null {
 export function Overview() {
   const [days, setDays] = useState<(typeof RANGES)[number]>(30)
   const [daily, setDaily] = useState<DailyStat[]>([])
+  const [dailyMode, setDailyMode] = useState<'increment' | 'cumulative'>('cumulative')
   const [videos, setVideos] = useState<Video[]>([])
   const [all, setAll] = useState<Video[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -45,7 +46,20 @@ export function Overview() {
   useEffect(() => {
     void (async () => {
       const ds = await getSource()
-      setDaily(await ds.dailyStats(days))
+      try {
+        const r = await fetch(`/api/daily?days=${days}`)
+        if (r.ok) {
+          const d = await r.json()
+          setDaily(d.items ?? [])
+          setDailyMode(d.mode ?? 'cumulative')
+        } else {
+          setDaily(await ds.dailyStats(days))
+          setDailyMode('cumulative')
+        }
+      } catch {
+        setDaily(await ds.dailyStats(days))
+        setDailyMode('cumulative')
+      }
       setVideos(await ds.videos())
       // 全局视野数据(自有+对标);后端离线时退化为空
       try {
@@ -193,7 +207,12 @@ export function Overview() {
           <>
         {/* ---- 六指标卡(KPI=互动三率 ---- */}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-          <MetricCard label="播放量" value={fmtNum(stats.plays)} delta={stats.playsDelta} sub={`${days} 天`} />
+          <MetricCard
+            label="播放量"
+            value={fmtNum(stats.plays)}
+            delta={dailyMode === 'increment' ? stats.playsDelta : null}
+            sub={dailyMode === 'increment' ? `${days} 天增量` : '作品累计'}
+          />
           <MetricCard label="完播率" value={fmtPct(stats.completion)} />
           <MetricCard label="5s完播" value={fmtPct(stats.completion5s)} />
           <MetricCard label="2秒跳出" value={fmtPct(stats.skip2s)} />
@@ -211,7 +230,12 @@ export function Overview() {
               </>
             }
           />
-          <MetricCard label="涨粉" value={fmtNum(stats.followers)} delta={stats.followersDelta} sub={`${days} 天`} />
+          <MetricCard
+            label="涨粉"
+            value={fmtNum(stats.followers)}
+            delta={dailyMode === 'increment' ? stats.followersDelta : null}
+            sub={dailyMode === 'increment' ? `${days} 天增量` : '作品累计'}
+          />
         </div>
 
         {/* ---- 全局视野:时长 × 播放散点(自有 vs 对标 vs 爆款,对数轴) ---- */}
@@ -280,7 +304,15 @@ export function Overview() {
         {/* ---- 播放/涨粉趋势 ---- */}
         <Card padded={false}>
           <div className="px-8 pt-8">
-            <SectionHeader eyebrow="Trend" title="播放与涨粉" />
+            <SectionHeader
+              eyebrow="Trend"
+              title={dailyMode === 'increment' ? '播放与涨粉' : '作品累计播放 · 按发布日'}
+              right={
+                <span className="pb-1 font-mono text-[0.8125rem] text-faint">
+                  {dailyMode === 'increment' ? '日增量' : '冷启动口径 · 满2天自动切换日增量'}
+                </span>
+              }
+            />
           </div>
           <div className="h-80 px-2 pb-4">
             <ResponsiveContainer width="100%" height="100%">
