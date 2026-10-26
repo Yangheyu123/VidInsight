@@ -9,7 +9,7 @@ RUN pnpm build
 FROM python:3.13-slim
 WORKDIR /app
 COPY backend/requirements.txt backend/requirements.txt
-RUN pip install --no-cache-dir -r backend/requirements.txt
+RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r backend/requirements.txt
 COPY backend/ backend/
 COPY --from=web /web/dist/ frontend/dist/
 
