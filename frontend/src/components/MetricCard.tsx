@@ -31,7 +31,7 @@ export function MetricCard({
       className={`lift rounded-card border p-8 ${highlight ? 'border-primary bg-primary text-white' : 'border-hairline bg-elevated text-ink'} ${className}`}
     >
       <div className={`eyebrow ${highlight ? 'text-white/60' : ''}`}>{label}</div>
-      <div className="mt-3 text-[40px] leading-[44px] font-semibold tracking-[-2px] tabular-nums">
+      <div className="mt-3 text-[2.5rem] leading-[44px] font-semibold tracking-[-2px] tabular-nums">
         {value}
       </div>
       {detail ? (
@@ -39,7 +39,7 @@ export function MetricCard({
       ) : (
         <div className="mt-2.5 flex items-center gap-2">
           {delta != null && (
-            <span className={`font-mono text-[13px] font-medium ${highlight ? 'text-cyan-soft' : deltaColor}`}>
+            <span className={`font-mono text-[0.8125rem] font-medium ${highlight ? 'text-cyan-soft' : deltaColor}`}>
               {delta >= 0 ? '▲' : '▼'} {fmtDelta(delta).replace('+', '').replace('-', '')}
             </span>
           )}

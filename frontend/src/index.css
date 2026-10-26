@@ -52,50 +52,69 @@
   --shadow-float:
     0 2px 2px rgba(0, 0, 0, 0.02), 0 8px 16px -4px rgba(0, 0, 0, 0.08); /* L2 悬浮:菜单/抽屉 */
 
-  /* ---- 字阶(typography,负字距只在 display/heading;V1.1 全站放大一档) ---- */
-  --text-display-xl: 56px;
-  --text-display-xl--line-height: 56px;
+  /* ---- 字阶(typography,负字距只在 display/heading;rem 随根字号缩放) ---- */
+  --text-display-xl: 3.5rem;
+  --text-display-xl--line-height: 3.5rem;
   --text-display-xl--letter-spacing: -2.8px;
   --text-display-xl--font-weight: 600;
-  --text-heading-lg: 38px;
-  --text-heading-lg--line-height: 46px;
+  --text-heading-lg: 2.375rem;
+  --text-heading-lg--line-height: 2.875rem;
   --text-heading-lg--letter-spacing: -1.52px;
   --text-heading-lg--font-weight: 600;
-  --text-heading-md: 22px;
-  --text-heading-md--line-height: 30px;
+  --text-heading-md: 1.375rem;
+  --text-heading-md--line-height: 1.875rem;
   --text-heading-md--letter-spacing: -0.44px;
   --text-heading-md--font-weight: 600;
-  --text-label-sm: 15px;
-  --text-label-sm--line-height: 22px;
+  --text-label-sm: 0.9375rem;
+  --text-label-sm--line-height: 1.375rem;
   --text-label-sm--letter-spacing: -0.3px;
   --text-label-sm--font-weight: 500;
-  --text-body-lg: 17px;
-  --text-body-lg--line-height: 26px;
-  --text-body-sm: 13px;
-  --text-body-sm--line-height: 18px;
+  --text-body-lg: 1.0625rem;
+  --text-body-lg--line-height: 1.625rem;
+  --text-body-sm: 0.8125rem;
+  --text-body-sm--line-height: 1.125rem;
 }
 
-/* ---- 基础样式:墨与画布的黑白银灰对 ---- */
+/* ---- 基础样式:墨与画布的黑白银灰对 ----
+   根字号响应式:普通屏 16px,1920+ 18px,2K(2400+) 20px
+   —— 所有字阶 token 均为 rem,随根等比缩放(27寸 2K 适配) */
 html {
   background: var(--color-canvas);
+  font-size: 16px;
+}
+@media (min-width: 1920px) {
+  html {
+    font-size: 18px;
+  }
+}
+@media (min-width: 2400px) {
+  html {
+    font-size: 20px;
+  }
 }
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 22px;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
   -webkit-font-smoothing: antialiased;
 }
 ::selection {
   background: var(--color-link-soft);
 }
 
+/* 键盘焦点:link 蓝环(Geist 招牌) */
+:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+
 /* ---- mono eyebrow:小号大写技术标签(Geist 系统的招牌;保持小号制造对比) ---- */
 .eyebrow {
   font-family: var(--font-mono);
-  font-size: 12.5px;
-  line-height: 18px;
+  font-size: 0.78125rem;
+  line-height: 1.125rem;
   font-weight: 500;
   letter-spacing: 0;
   text-transform: uppercase;

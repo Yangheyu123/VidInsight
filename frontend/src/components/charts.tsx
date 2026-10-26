@@ -8,7 +8,7 @@ import type { ReactNode } from 'react'
 export const MONO = "'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
 
 export const axisProps = {
-  tick: { fill: '#8f8f8f', fontSize: 12, fontFamily: MONO },
+  tick: { fill: '#8f8f8f', fontSize: 13, fontFamily: MONO },
   axisLine: { stroke: '#ebebeb' },
   tickLine: false as const,
 }
