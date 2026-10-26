@@ -36,6 +36,10 @@
 
 ## 快速开始(Windows)
 
+**日常一键启动**:双击 `scripts\start.bat` → 自动构建前端 → 单进程全栈服务 → 打开 http://127.0.0.1:8787
+
+开发模式(热更新)才需要双终端:
+
 ```bash
 git clone https://github.com/Yangheyu123/VidInsight.git && cd VidInsight
 

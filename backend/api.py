@@ -234,7 +234,7 @@ def video_daily(video_id: str) -> list[dict]:
 
 @app.get("/api/templates")
 def templates() -> list[dict]:
-    """模板库:由 LLM 拆解报告沉淀(reports → templates)"""
+    """模板库:报告沉淀;stats 优先用真实数据(模板↔作品回写关联后持续累计)"""
     rows = db.conn().execute("SELECT * FROM templates ORDER BY id").fetchall()
     out = []
     for r in rows:
@@ -242,6 +242,23 @@ def templates() -> list[dict]:
             stats = json.loads(r["stats_json"] or "{}")
         except json.JSONDecodeError:
             stats = {}
+        # 真实数据回填:该模板名下自有作品的实测均值(有关联时覆盖 LLM 估算)
+        real = db.conn().execute(
+            """SELECT COUNT(*) n, AVG(views) mv, AVG(completion_rate) mc,
+                      AVG(completion_5s_rate) m5,
+                      AVG(favorites * 1.0 / NULLIF(views, 0)) mf
+               FROM videos WHERE template_id=? AND is_own=1""",
+            (r["id"],),
+        ).fetchone()
+        if real and real["n"]:
+            stats = {
+                "videos": real["n"],
+                "avgViews": round(real["mv"] or 0),
+                "avgCompletion": round(real["mc"] or 0, 4),
+                "avg5s": round(real["m5"] or 0, 4),
+                "avgFavRate": round(real["mf"] or 0, 4),
+                "source": "real",
+            }
         out.append(
             {
                 "id": r["id"],
@@ -541,6 +558,18 @@ def main() -> None:
     import uvicorn
 
     uvicorn.run(app, host=API_HOST, port=API_PORT)
+
+
+# ---- 一键启动:FastAPI 托管前端构建产物(pnpm build 后,起后端即全栈单进程) ----
+from pathlib import Path as _P  # noqa: E402
+
+from fastapi.staticfiles import StaticFiles as _Static  # noqa: E402
+
+from .config import ROOT as _ROOT  # noqa: E402
+
+_DIST = _P(_ROOT) / "frontend" / "dist"
+if _DIST.exists():
+    app.mount("/", _Static(directory=str(_DIST), html=True), name="web")
 
 
 if __name__ == "__main__":

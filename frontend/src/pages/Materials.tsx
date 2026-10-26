@@ -24,7 +24,7 @@ interface Material {
 }
 
 const FILTERS = ['全部', '待用', '已用', '丢弃']
-const CATEGORIES = ['全部', '热点爆款', '传统哲学', '小众潜力', '爆款脚本']
+const CATEGORIES = ['全部', '热点爆款', '传统哲学', '小众潜力', '爆款脚本', '爆款评论']
 const SOURCE_LABEL: Record<string, string> = {
   zhihu_hot: '知乎热榜',
   weibo_hot: '微博热搜',
@@ -35,6 +35,7 @@ const SOURCE_LABEL: Record<string, string> = {
   v2ex: 'V2EX',
   hackernews: 'HackerNews',
   bench_video: '对标逐字稿',
+  bili_comments: '对标评论区',
 }
 
 /** 三维评分条:墨色填充,10 分满格 */
