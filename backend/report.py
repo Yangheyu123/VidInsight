@@ -9,8 +9,10 @@ import json
 import re
 from datetime import datetime
 
-from . import db, llm
+from . import db, llm, own_scripts
 from .persona import PERSONA
+
+VS_SECTION = "8. 我的脚本 vs 爆款脚本(逐段对比开场/节奏/金句密度,给我的脚本具体改写句)"
 
 SYSTEM = (
     f"你是一名资深短视频策略分析师,专注抖音知识类内容。{PERSONA}"
@@ -157,6 +159,39 @@ def _adopted_lines() -> str:
     return f"\n创作者已采用的选题素材(选题方向章节必须优先围绕它们给执行方案):\n{lines}\n"
 
 
+def _scripts_block() -> tuple[str, bool]:
+    """闭环最后一环:自有脚本(产线原文) vs 爆款脚本(对标逐字稿)。
+    返回 (prompt 文本块, 是否可出对比章节)。"""
+    own = own_scripts.latest_own_scripts(2)
+    bench = db.conn().execute(
+        "SELECT title, substr(content,1,600) c FROM materials "
+        "WHERE category='爆款脚本' ORDER BY score DESC LIMIT 1"
+    ).fetchall()
+    if not own or not bench:
+        return "", False
+    own_txt = "\n\n".join(
+        (
+            f"【我的脚本·{s['title']}({s['chars']}字"
+            + (
+                f";真实战绩: 播放{s['views']:,} 完播{s['completion_rate'] * 100:.1f}% "
+                f"5s完播{s['completion_5s_rate'] * 100:.1f}% 2s跳出{s['skip_2s_rate'] * 100:.1f}% 藏{s['favorites']:,}"
+                if s.get("views")
+                else ""
+            )
+            + f")】\n{s['text'][:1800]}"
+        )
+        for s in own
+    )
+    b = bench[0]
+    bench_txt = f"【爆款脚本·{b['title']}】\n{b['c']}"
+    block = (
+        f"\n—— 脚本对比素材(真实原文,严禁编造) ——\n{own_txt}\n\n{bench_txt}\n"
+        f"「{VS_SECTION[3:]}」章节必须:引用双方原文原句逐段对比,"
+        "指出我的开场钩子/金句密度/结尾指令与爆款的差距,每处差距给一句可直接替换的改写。\n"
+    )
+    return block, True
+
+
 def generate(scope: str = "own") -> dict:
     """生成拆解报告并存库;scope=own(自有数据)/ bench(对标数据)。
     返回 {report_id, engine, templates}"""
@@ -182,9 +217,15 @@ def generate(scope: str = "own") -> dict:
             f"创作者抖音账号数据({now[:10]} 快照):\n"
             f"均值播放 {stats['mean_views']:,},爆款线 3×均值 = {stats['viral_line']:,}\n"
         )
+        # 闭环:自有脚本 vs 爆款脚本(素材齐备时追加第 8 章)
+        scripts_block, has_vs = _scripts_block()
+        if has_vs:
+            sections = [*SECTIONS, VS_SECTION]
+    if scope == "bench":
+        scripts_block = ""
 
     user_prompt = (
-        head + f"{lines}\n{_adopted_lines()}\n请基于以上真实数据输出拆解报告,Markdown 固定章节:\n"
+        head + f"{lines}\n{_adopted_lines()}{scripts_block}\n请基于以上真实数据输出拆解报告,Markdown 固定章节:\n"
         + "\n".join(f"## {s}" for s in sections)
         + "\n\n每章节必须结合上面数据的真实规律给结论;结论一律引用具体数字(播放/点赞/收藏的绝对值,不要只给百分比);"
         "报告面向可直接模仿执行。\n"

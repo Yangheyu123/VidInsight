@@ -23,3 +23,6 @@ vendors/
 .DS_Store
 Thumbs.db
 *.log
+
+# 本地工具(ffmpeg 等二进制,按 README 自行下载)
+tools/

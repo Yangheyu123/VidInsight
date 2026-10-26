@@ -50,6 +50,13 @@ def tick() -> None:
         result = ingest.run_douyin_sync()
         _mark_next("douyin_self", 1440)
         print(f"[tick] douyin_self 完成:{result}")
+        # 顺带:本地产线脚本采集(纯本地文件解析,秒级)
+        try:
+            from . import own_scripts
+
+            print(f"[tick] 产线脚本: {own_scripts.harvest_own_scripts()}")
+        except Exception as e:  # noqa: BLE001
+            print(f"[tick] 产线脚本采集失败:{e}")
     else:
         print("[tick] douyin_self:未到期,跳过")
 

@@ -238,6 +238,13 @@ def report_detail(rid: int) -> dict:
     return dict(r)
 
 
+@app.delete("/api/reports/{rid}")
+def report_delete(rid: int) -> dict:
+    db.conn().execute("DELETE FROM reports WHERE id=?", (rid,))
+    db.conn().commit()
+    return {"ok": True}
+
+
 class ReportBody(BaseModel):
     scope: str = "own"  # own=自有数据 / bench=对标数据
 
@@ -360,6 +367,14 @@ def radar_collect(body: RadarBody) -> dict:
 def scripts_ingest_api() -> dict:
     """对标爆款 → 音频(临时)→ 转写 → LLM 提炼钩子/金句 → 素材库「爆款脚本」"""
     return _run_job("scripts", scripts_ingest.ingest_bench_scripts, limit=3)
+
+
+@app.post("/api/scripts/own")
+def scripts_own_api() -> dict:
+    """自有脚本:本地产线(D:\\aivideo)script.ts 逐字剧本提取 → video_scripts"""
+    from . import own_scripts
+
+    return own_scripts.harvest_own_scripts()
 
 
 @app.get("/api/sync-status")

@@ -126,6 +126,17 @@ CREATE TABLE IF NOT EXISTS templates (
   stats_json TEXT,                           -- {videos,avgViews,avgCompletion,avg5s,avgFavRate}
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS video_scripts (   -- 自有脚本(本地产线 script.ts 提取)
+  project TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  text TEXT NOT NULL,
+  chars INTEGER,
+  source TEXT NOT NULL DEFAULT 'aivideo_line',
+  file_mtime TEXT,
+  video_id TEXT,                             -- 配对的抖音作品(标题模糊匹配)
+  created_at TEXT NOT NULL
+);
 """
 
 # 轻量迁移:老库补列(幂等,列已存在则跳过)
@@ -149,6 +160,7 @@ _MIGRATIONS = (
     "ALTER TABLE snapshots ADD COLUMN avg_play_ratio REAL",
     "ALTER TABLE snapshots ADD COLUMN dislike_rate REAL",
     "ALTER TABLE materials ADD COLUMN category TEXT NOT NULL DEFAULT '热点爆款'",
+    "ALTER TABLE video_scripts ADD COLUMN video_id TEXT",
 )
 
 

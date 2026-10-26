@@ -106,21 +106,34 @@ export function Reports() {
       <Card className="mt-8" padded={false}>
         <div className="divide-y divide-hairline">
           {list.map((r) => (
-            <button
+            <div
               key={r.id}
-              onClick={() => open(r.id)}
-              className="flex w-full items-center gap-4 px-8 py-4 text-left hover:bg-hairline-soft"
+              className="group flex w-full items-center gap-4 px-8 py-4 hover:bg-hairline-soft"
             >
-              <span
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-body-sm ${
-                  r.engine === 'llm' ? 'bg-primary text-white' : 'bg-warning-soft text-warning-deep'
-                }`}
+              <button onClick={() => open(r.id)} className="flex min-w-0 flex-1 items-center gap-4 text-left">
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-body-sm ${
+                    r.engine === 'llm' ? 'bg-primary text-white' : 'bg-warning-soft text-warning-deep'
+                  }`}
+                >
+                  {r.engine === 'llm' ? 'AI' : '统计'}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-body-md text-ink">{r.title}</span>
+                <span className="font-mono text-[0.8125rem] text-mute">
+                  {r.created_at.slice(5, 16).replace('T', ' ')}
+                </span>
+              </button>
+              <button
+                onClick={async () => {
+                  await fetch(`/api/reports/${r.id}`, { method: 'DELETE' })
+                  load()
+                }}
+                className="hidden h-7 items-center rounded-square border border-hairline px-2 text-body-sm text-mute hover:bg-elevated hover:text-error group-hover:inline-flex"
+                aria-label="删除"
               >
-                {r.engine === 'llm' ? 'AI' : '统计'}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-body-md text-ink">{r.title}</span>
-              <span className="font-mono text-[0.8125rem] text-mute">{r.created_at.slice(5, 16).replace('T', ' ')}</span>
-            </button>
+                删除
+              </button>
+            </div>
           ))}
           {list.length === 0 && (
             <div className="px-8 py-12 text-center text-mute">还没有报告,点右上角生成第一份</div>
