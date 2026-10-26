@@ -1,0 +1,12 @@
+services:
+  vidinsight:
+    build: .
+    container_name: vidinsight
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    volumes:
+      - ./data:/app/data          # 数据库持久化(服务器侧只读展示+报告)
+    environment:
+      - TZ=Asia/Shanghai
+      # LLM 与通知从 .env 注入(见 .env.example;敏感值不进 git)
