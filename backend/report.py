@@ -10,10 +10,10 @@ import re
 from datetime import datetime
 
 from . import db, llm
+from .persona import PERSONA
 
 SYSTEM = (
-    "你是一名资深短视频策略分析师,专注抖音知识类内容。"
-    "创作者赛道:青年思辨哲学短视频,受众 18-23 岁男性,核心目标:高收藏率。"
+    f"你是一名资深短视频策略分析师,专注抖音知识类内容。{PERSONA}"
     "规则:只引用给定数据中的真实数字,禁止编造;输出简体中文 Markdown;"
     "结论果断、可执行,少解释多给模板。"
 )

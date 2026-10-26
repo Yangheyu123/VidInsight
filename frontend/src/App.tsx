@@ -118,11 +118,13 @@ export default function App() {
       )}
 
       <main className="flex-1">
-        {route === 'overview' && <Overview />}
-        {route === 'videos' && <Videos />}
-        {route === 'templates' && <Templates />}
-        {route === 'reports' && <Reports />}
-        {route === 'materials' && <Materials />}
+        <div key={route} className="page-enter">
+          {route === 'overview' && <Overview />}
+          {route === 'videos' && <Videos />}
+          {route === 'templates' && <Templates />}
+          {route === 'reports' && <Reports />}
+          {route === 'materials' && <Materials />}
+        </div>
       </main>
 
       <footer className="border-t border-hairline">

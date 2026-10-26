@@ -203,6 +203,92 @@ body {
   background: var(--color-canvas);
 }
 
+/* ---- 交互质感层(V1.2:微交互 + 过渡 + 骨架屏) ---- */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.page-enter {
+  animation: fadeUp 0.35s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(28px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.drawer-enter {
+  animation: slideInRight 0.28s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.fade-enter {
+  animation: fadeIn 0.25s ease both;
+}
+
+/* 卡片悬浮:抬升 + 发丝线加深 + 浮层阴影(仍是 Geist 的克制级别) */
+.lift {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+.lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-float);
+  border-color: #e0e0e0;
+}
+
+/* 按压反馈 */
+.btn-press {
+  transition:
+    transform 0.12s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* 骨架屏微光 */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-hairline-soft);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
 /* ---- 滚动条:融入灰阶 ---- */
 *::-webkit-scrollbar {
   width: 8px;
