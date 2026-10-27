@@ -1,0 +1,13 @@
+{
+  "name": "VidInsight 抖音运营中台",
+  "short_name": "VidInsight",
+  "description": "抖音数据中台:采集→看板→预检→报告闭环",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafafa",
+  "theme_color": "#171717",
+  "icons": [
+    { "src": "/pwa-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/pwa-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

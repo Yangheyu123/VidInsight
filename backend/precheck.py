@@ -103,7 +103,9 @@ LLM_INSTRUCTION = """你是短视频剧本质检官。基于「真实数据证�
  "strengths": ["保留的亮点,最多3条"],
  "rewrite_hook": "若开场有问题,给一个可用的具象开场句;无问题给空串",
  "rewrite": "完整修正稿全文(直接应用所有fix后的可发布版本,保持原意与45-55s时长;verdict=可发时返回原稿)"}
-问题定位到具体句子,fix 必须给可直接替换的例句。rewrite 必须是完整剧本,不许只写改动说明。"""
+问题定位到具体句子,fix 必须给可直接替换的例句。rewrite 必须是完整剧本,不许只写改动说明。
+纪律:每个问题必须有证据或铁律支撑,证据不足的不许报;剧本已达标时 verdict 必须是"可发"且 issues 为空——
+不许为了显得专业硬凑问题,最多报5条,只报真正会伤数据的。"""
 
 
 def _evidence_block(evidence: list[dict]) -> str:
@@ -174,6 +176,7 @@ def precheck(text: str) -> dict:
         items.extend(llm.get("issues") or [])
         # 同 severity 排序;规则层问题保留在前(LLM 会重复点名的合并展示无妨)
     items.sort(key=lambda x: SEV_ORDER.get(x.get("severity"), 3))
+    items = items[:5]  # 封顶:防止无限挑刺
 
     highs = sum(1 for i in items if i.get("severity") == "high")
     if llm and llm.get("score") is not None:
