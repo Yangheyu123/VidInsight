@@ -145,7 +145,7 @@ def tick() -> None:
             print(f"[tick] 脚本管线失败:{e}")
         _mark_next("bench_scripts", 10080)
 
-    # ---- 对标雷达(每周:扫「关键词订阅表」里启用的关键词,B站+YouTube)----
+    # ---- 对标雷达(每2天:日更账号对标必须跟转) ----
     if _due("radar_bench", now):
         print("[tick] radar_bench:到期,按订阅关键词扫描…")
         kws = db.conn().execute(
@@ -170,7 +170,7 @@ def tick() -> None:
             brief.build_brief()  # 对标数据变了,简报态势同步刷新
         except Exception:  # noqa: BLE001
             pass
-        _mark_next("radar_bench", 10080)
+        _mark_next("radar_bench", 2880)
 
     # 告警:failing → 本地标记 + 推送(每日一次去重);恢复清理标记
     from . import notify as _notify
