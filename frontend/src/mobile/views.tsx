@@ -6,8 +6,10 @@ import { useEffect, useState } from 'react'
 import { fmtDate, fmtNum, fmtPct } from '../data/format'
 import { isViral } from '../data/stats'
 import type { Video } from '../types'
-import { MobileList, MobilePage, MobileRow, MobileStats } from './primitives'
+import { useJob } from '../pages/Reports'
+import { MobileList, MobilePage, MobilePager, MobileRow, MobileStats } from './primitives'
 
+const PAGE_SIZE = 10
 const PLATFORM: Record<string, string> = { douyin: '抖音', bilibili: 'B站', youtube: 'YT' }
 
 /* ---------------- 作品明细 ---------------- */
@@ -16,22 +18,45 @@ export function VideosMobile() {
   const [videos, setVideos] = useState<Video[]>([])
   const [scope, setScope] = useState<'all' | 'own' | 'bench'>('own')
   const [openId, setOpenId] = useState<string | null>(null)
-  useEffect(() => {
+  const [page, setPage] = useState(1)
+  const [syncing, setSyncing] = useState(false)
+  const load = () => {
     fetch(`/api/videos?scope=all`)
       .then((r) => (r.ok ? r.json() : []))
       .then(setVideos)
       .catch(() => setVideos([]))
-  }, [])
+  }
+  useEffect(load, [])
   const rows = videos.filter((v) =>
     scope === 'all' ? true : scope === 'own' ? v.isOwn : !v.isOwn,
   )
+  const pages = Math.ceil(rows.length / PAGE_SIZE)
+  const slice = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const sync = async () => {
+    setSyncing(true)
+    await fetch('/api/sync', { method: 'POST' }).catch(() => {})
+    setTimeout(load, 8000) // ingest 是异步任务,稍后拉取
+    setTimeout(() => setSyncing(false), 9000)
+  }
   return (
-    <MobilePage title="作品明细" desc={`${rows.length} 条 · 点开看全量数据`}>
+    <MobilePage
+      title="作品明细"
+      desc={`${rows.length} 条 · 点行看全量数据`}
+      action={
+        <button
+          onClick={sync}
+          disabled={syncing}
+          className="h-10 shrink-0 rounded-square bg-primary px-3.5 text-label-sm text-white disabled:opacity-50"
+        >
+          {syncing ? '同步中…' : '同步'}
+        </button>
+      }
+    >
       <div className="mb-4 flex gap-2">
         {([['own', '自有'], ['bench', '对标'], ['all', '全部']] as const).map(([k, label]) => (
           <button
             key={k}
-            onClick={() => setScope(k)}
+            onClick={() => { setScope(k); setPage(1) }}
             className={`h-10 flex-1 rounded-square text-label-sm ${
               scope === k ? 'bg-primary text-white' : 'border border-hairline bg-elevated text-body'
             }`}
@@ -41,7 +66,7 @@ export function VideosMobile() {
         ))}
       </div>
       <MobileList>
-        {rows.map((v) => (
+        {slice.map((v) => (
           <MobileRow
             key={v.videoId}
             open={openId === v.videoId}
@@ -79,8 +104,9 @@ export function VideosMobile() {
             )}
           </MobileRow>
         ))}
-        {rows.length === 0 && <div className="px-4 py-10 text-center text-mute">暂无作品</div>}
+        {slice.length === 0 && <div className="px-4 py-10 text-center text-mute">暂无作品</div>}
       </MobileList>
+      <MobilePager page={page} pages={pages} onChange={setPage} />
     </MobilePage>
   )
 }
@@ -103,16 +129,24 @@ interface MaterialItem {
 
 export function MaterialsMobile() {
   const [list, setList] = useState<MaterialItem[]>([])
+  const [total, setTotal] = useState(0)
   const [filter, setFilter] = useState('待用')
   const [openId, setOpenId] = useState<number | null>(null)
+  const [page, setPage] = useState(1)
+  const fetchJob = useJob('materials', () =>
+    fetch('/api/materials/fetch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+  )
 
   const load = () => {
-    fetch(`/api/materials?status=${encodeURIComponent(filter)}&page_size=50`)
-      .then((r) => (r.ok ? r.json() : { items: [] }))
-      .then((d) => setList(d.items ?? []))
+    fetch(`/api/materials?status=${encodeURIComponent(filter)}&page=${page}&page_size=${PAGE_SIZE}`)
+      .then((r) => (r.ok ? r.json() : { items: [], total: 0, pages: 1 }))
+      .then((d) => {
+        setList(d.items ?? [])
+        setTotal(d.total ?? 0)
+      })
       .catch(() => setList([]))
   }
-  useEffect(load, [filter])
+  useEffect(load, [filter, page])
 
   const setStatus = async (id: number, status: string) => {
     await fetch(`/api/materials/${id}`, {
@@ -123,13 +157,27 @@ export function MaterialsMobile() {
     load()
   }
 
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
   return (
-    <MobilePage title="素材库" desc={`${list.length} 条 · 点开看建议与操作`}>
+    <MobilePage
+      title="素材库"
+      desc={`${total} 条 · 点行看建议与操作`}
+      action={
+        <button
+          onClick={() => fetchJob.trigger(load)}
+          disabled={fetchJob.running}
+          className="h-10 shrink-0 rounded-square bg-primary px-3.5 text-label-sm text-white disabled:opacity-50"
+        >
+          {fetchJob.running ? '抓取中…' : '抓取'}
+        </button>
+      }
+    >
       <div className="mb-4 flex gap-2 overflow-x-auto">
         {['待用', '已用', '丢弃', ''].map((f) => (
           <button
             key={f || 'all'}
-            onClick={() => setFilter(f)}
+            onClick={() => { setFilter(f); setPage(1) }}
             className={`h-10 shrink-0 rounded-square px-4 text-label-sm ${
               filter === f ? 'bg-primary text-white' : 'border border-hairline bg-elevated text-body'
             }`}
@@ -188,6 +236,7 @@ export function MaterialsMobile() {
         ))}
         {list.length === 0 && <div className="px-4 py-10 text-center text-mute">该状态暂无素材</div>}
       </MobileList>
+      <MobilePager page={page} pages={pages} onChange={setPage} />
     </MobilePage>
   )
 }
@@ -205,6 +254,14 @@ export function ReportsMobile() {
   const [list, setList] = useState<ReportMeta[]>([])
   const [openId, setOpenId] = useState<number | null>(null)
   const [html, setHtml] = useState<Record<number, string>>({})
+  const [page, setPage] = useState(1)
+  const genJob = useJob('report', () =>
+    fetch('/api/report/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scope: 'own' }),
+    }),
+  )
 
   const load = () => {
     fetch('/api/reports')
@@ -226,10 +283,25 @@ export function ReportsMobile() {
     }
   }
 
+  const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE))
+  const slice = list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   return (
-    <MobilePage title="报告中心" desc={`${list.length} 份 · 点开阅读`}>
+    <MobilePage
+      title="报告中心"
+      desc={`${list.length} 份 · 点行阅读`}
+      action={
+        <button
+          onClick={() => genJob.trigger(load)}
+          disabled={genJob.running}
+          className="h-10 shrink-0 rounded-square bg-primary px-3.5 text-label-sm text-white disabled:opacity-50"
+        >
+          {genJob.running ? '生成中…' : '生成'}
+        </button>
+      }
+    >
       <MobileList>
-        {list.map((r) => (
+        {slice.map((r) => (
           <MobileRow
             key={r.id}
             open={openId === r.id}
@@ -251,6 +323,7 @@ export function ReportsMobile() {
         ))}
         {list.length === 0 && <div className="px-4 py-10 text-center text-mute">暂无报告</div>}
       </MobileList>
+      <MobilePager page={page} pages={pages} onChange={setPage} />
     </MobilePage>
   )
 }

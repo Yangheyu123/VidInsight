@@ -122,3 +122,37 @@ export function MobileStats({ items }: { items: { label: string; value: ReactNod
     </div>
   )
 }
+
+/** 分页器:上一页/下一页,替代无限下滑(拇指区大按钮) */
+export function MobilePager({
+  page,
+  pages,
+  onChange,
+}: {
+  page: number
+  pages: number
+  onChange: (p: number) => void
+}) {
+  if (pages <= 1) return null
+  return (
+    <div className="mt-4 flex items-center gap-3">
+      <button
+        disabled={page <= 1}
+        onClick={() => onChange(page - 1)}
+        className="h-11 flex-1 rounded-square border border-hairline bg-elevated text-label-sm text-ink disabled:opacity-40"
+      >
+        ← 上一页
+      </button>
+      <span className="font-mono text-body-sm text-mute">
+        {page}/{pages}
+      </span>
+      <button
+        disabled={page >= pages}
+        onClick={() => onChange(page + 1)}
+        className="h-11 flex-1 rounded-square border border-hairline bg-elevated text-label-sm text-ink disabled:opacity-40"
+      >
+        下一页 →
+      </button>
+    </div>
+  )
+}
