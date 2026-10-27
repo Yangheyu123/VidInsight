@@ -239,8 +239,8 @@ export function Overview() {
         </div>
 
         {/* ---- 全局视野:时长 × 播放散点(自有 vs 对标 vs 爆款,对数轴) ---- */}
-        <Card padded={false}>
-          <div className="flex flex-wrap items-end justify-between gap-4 px-8 pt-8">
+        <Card className="min-w-0" padded={false}>
+          <div className="flex flex-wrap items-end justify-between gap-4 px-6 pt-8 sm:px-8">
             <SectionHeader eyebrow="Landscape" title="全局视野" />
             <div className="flex items-center gap-4 pb-1 font-mono text-[0.8125rem] text-mute">
               <span>自有 {scatter.ownCount} · 均 {fmtNum(scatter.ownMean)}</span>
@@ -302,8 +302,8 @@ export function Overview() {
         </Card>
 
         {/* ---- 播放/涨粉趋势 ---- */}
-        <Card padded={false}>
-          <div className="px-8 pt-8">
+        <Card className="min-w-0" padded={false}>
+          <div className="px-6 pt-8 sm:px-8">
             <SectionHeader
               eyebrow="Trend"
               title={dailyMode === 'increment' ? '播放与涨粉' : '作品累计播放 · 按发布日'}
@@ -365,8 +365,8 @@ export function Overview() {
 
         {/* ---- 完播率曲线 + 近期作品速览 ---- */}
         <div className="grid gap-6 lg:grid-cols-5">
-          <Card className="lg:col-span-3" padded={false}>
-            <div className="px-8 pt-8">
+          <Card className="min-w-0 lg:col-span-3" padded={false}>
+            <div className="px-6 pt-8 sm:px-8">
               <SectionHeader eyebrow="Retention" title="完播率" />
             </div>
             <div className="h-64 px-2 pb-4">
@@ -415,15 +415,15 @@ export function Overview() {
             </div>
           </Card>
 
-          <Card className="lg:col-span-2" padded={false}>
-            <div className="px-8 pt-8">
+          <Card className="min-w-0 lg:col-span-2" padded={false}>
+            <div className="px-6 pt-8 sm:px-8">
               <SectionHeader eyebrow="Top 5" title="作品" />
             </div>
             <div className="divide-y divide-hairline">
               {topVideos.map((v) => (
-                <div key={v.videoId} className="flex items-center gap-3 px-8 py-3.5">
+                <div key={v.videoId} className="flex items-center gap-3 px-6 py-3.5 sm:px-8">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <span className="truncate text-body-md text-ink">{v.title}</span>
                       {isViral(v, videos) && <ViralBadge />}
                     </div>

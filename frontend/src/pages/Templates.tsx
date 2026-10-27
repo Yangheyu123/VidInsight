@@ -116,7 +116,7 @@ export function Templates() {
             title="模板对照"
             desc="同一指标,两个模板正面对比"
             right={
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {([
                   ['A', aId, setAId],
                   ['B', bId, setBId],
@@ -126,7 +126,7 @@ export function Templates() {
                     <select
                       value={cur}
                       onChange={(e) => set(e.target.value)}
-                      className="h-9 rounded-square border border-hairline bg-elevated px-2 text-body-md text-ink outline-none focus:border-link"
+                      className="h-9 max-w-[9.5rem] rounded-square border border-hairline bg-elevated px-2 text-body-sm text-ink outline-none focus:border-link"
                     >
                       {templates.map((t) => (
                         <option key={t.id} value={t.id}>
