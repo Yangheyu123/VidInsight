@@ -50,39 +50,43 @@ def gather_evidence() -> list[dict]:
 
     # L1 自有:近30天有脚本配对的作品(真实战绩是核心反馈)
     try:
-        since = _now().timestamp() - OWN_WINDOW_DAYS * 86400
         rows = c.execute(
-            """SELECT vs.project, vs.title AS stitle, vs.text, v.title, v.publish_time,
-                      v.views, v.likes, v.comments, v.completion_5s_rate,
-                      v.skip_2s_rate, v.completion_rate
-               FROM video_scripts vs JOIN videos v ON vs.video_id = v.video_id
-               WHERE v.is_own = 1
+            """SELECT vs.project, vs.title AS stitle, vs.text, vs.video_id,
+                      v.title, v.publish_time, v.views, v.likes, v.comments,
+                      v.completion_5s_rate, v.skip_2s_rate, v.completion_rate
+               FROM video_scripts vs LEFT JOIN videos v ON vs.video_id = v.video_id
                ORDER BY v.publish_time DESC"""
         ).fetchall()
         for r in rows:
-            pub = (r["publish_time"] or "")[:19]
+            paired = bool(r["video_id"])
+            pub = (r["publish_time"] or "")[:19] if paired else ""
             if pub and _age_days(pub) > OWN_WINDOW_DAYS:
                 continue
-            metrics = (
-                f"播放{_fmt(r['views'])} 赞{_fmt(r['likes'])} 评论{_fmt(r['comments'])} "
-                f"5s完播{_fmt(r['completion_5s_rate'], '%')} 2s跳出{_fmt(r['skip_2s_rate'], '%')} "
-                f"完播{_fmt(r['completion_rate'], '%')}"
-            )
+            title = r["title"] or r["stitle"] or r["project"] or "自有作品"
+            if paired and r["views"] is not None:
+                metrics = (
+                    f"播放{_fmt(r['views'])} 赞{_fmt(r['likes'])} 评论{_fmt(r['comments'])} "
+                    f"5s完播{_fmt(r['completion_5s_rate'], '%')} 2s跳出{_fmt(r['skip_2s_rate'], '%')} "
+                    f"完播{_fmt(r['completion_rate'], '%')}"
+                )
+                text = f"《{title}》发布{pub[:10]} 战绩:{metrics} 脚本:{(r['text'] or '')[:SCRIPT_EXCERPT]}"
+            else:
+                text = f"《{title}》(尚未配对抖音作品数据,只有脚本) 脚本:{(r['text'] or '')[:SCRIPT_EXCERPT]}"
             docs.append({
                 "kind": "own_video",
-                "title": r["title"] or r["stitle"] or r["project"] or "自有作品",
-                "text": f"《{r['title'] or r['stitle']}》发布{pub[:10]} 战绩:{metrics} "
-                        f"脚本:{(r['text'] or '')[:SCRIPT_EXCERPT]}",
-                "age_days": _age_days(pub) if pub else 99,
+                "title": title if paired else f"{title}·未配对",
+                "text": text,
+                "age_days": _age_days(pub) if pub else 7,
             })
     except Exception:
         pass
 
-    # L1' 对标爆款脚本
+    # L1' 对标爆款脚本:仅非产线来源(产线脚本一律是自有,不得混入)
     try:
         rows = c.execute(
             "SELECT project, title, text, created_at FROM video_scripts "
-            "WHERE video_id IS NULL OR video_id = '' ORDER BY created_at DESC LIMIT ?",
+            "WHERE (video_id IS NULL OR video_id = '') AND source != 'aivideo_line' "
+            "ORDER BY created_at DESC LIMIT ?",
             (BENCH_LIMIT,),
         ).fetchall()
         for r in rows:
