@@ -22,6 +22,13 @@ jobs:
           script: |
             set -e
             cd ~/vidinsight
+            # 负载闸门:Chrome 采集运行时(负载>4)先等待,避免构建与采集互相挤死
+            for i in $(seq 1 40); do
+              LOAD=$(awk '{print int($1)}' /proc/loadavg)
+              [ "$LOAD" -lt 4 ] && break
+              echo "load $LOAD >= 4, waiting... ($i/40)"
+              sleep 20
+            done
             git fetch origin main
             git reset --hard origin/main
             docker compose up -d --build
