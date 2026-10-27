@@ -321,7 +321,46 @@ export function Videos() {
 
       {/* 表格 */}
       <Card className="mt-4" padded={false}>
-        <div className="overflow-x-auto">
+        {/* 手机端:卡片流(免横向滚动) */}
+        <div className="divide-y divide-hairline md:hidden">
+          {rows.map((v) => {
+            const viral = isViral(v, videos)
+            const fr = v.views ? v.favorites / v.views : null
+            return (
+              <button
+                key={v.videoId}
+                onClick={() => setSelected(v)}
+                className="block w-full px-5 py-4 text-left active:bg-hairline-soft"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-[0.75rem] text-body">
+                    {PLATFORM_LABEL[v.platform] ?? v.platform}
+                  </span>
+                  <span className="truncate text-body-md text-ink">{v.title}</span>
+                  {viral && <ViralBadge />}
+                </div>
+                <div className="mt-1 text-[0.75rem] text-mute">
+                  {fmtDate(v.publishTime)} · {fmtDur(v.durationSec)}
+                </div>
+                <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[0.8125rem] tabular-nums">
+                  <span className="text-ink">播 {fmtNum(v.views)}</span>
+                  <span className="text-body">赞 {fmtNum(v.likes)}</span>
+                  <span className="text-body">完播 {fmtPct(v.completionRate)}</span>
+                  <span className="text-body">2s跳 {fmtPct(v.skip2sRate)}</span>
+                  <span className="font-medium text-link-deep">收藏率 {fmtPct(fr)}</span>
+                </div>
+              </button>
+            )
+          })}
+          {rows.length === 0 && (
+            <div className="px-5 py-12 text-center text-mute">
+              {videos.length === 0 ? '后端未连接或未同步' : '没有匹配的作品'}
+            </div>
+          )}
+        </div>
+
+        {/* 桌面端:全宽表格 */}
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[960px] border-collapse text-body-md">
             <thead>
               <tr className="border-b border-hairline">
