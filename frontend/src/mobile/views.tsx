@@ -34,9 +34,22 @@ export function VideosMobile() {
   const slice = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const sync = async () => {
     setSyncing(true)
-    await fetch('/api/sync', { method: 'POST' }).catch(() => {})
-    setTimeout(load, 8000) // ingest 是异步任务,稍后拉取
-    setTimeout(() => setSyncing(false), 9000)
+    try {
+      await fetch('/api/sync', { method: 'POST' })
+      // ingest 是异步任务:轮询 /api/sync-status 直到完成再刷新(而非死等)
+      for (let i = 0; i < 40; i++) {
+        await new Promise((r) => setTimeout(r, 3000))
+        try {
+          const s = await fetch('/api/sync-status').then((x) => x.json())
+          if (!s?.running) break
+        } catch {
+          break
+        }
+      }
+      load()
+    } finally {
+      setSyncing(false)
+    }
   }
   return (
     <MobilePage

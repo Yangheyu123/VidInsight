@@ -322,13 +322,61 @@ class PrecheckBody(BaseModel):
 
 @app.post("/api/precheck")
 def precheck_api(body: PrecheckBody) -> dict:
-    return _run_job("precheck", precheck.precheck, body.text)
+    def run() -> dict:
+        result = precheck.precheck(body.text)
+        try:
+            from . import publish
+
+            result["archive_id"] = publish.archive_precheck(body.text, result)
+        except Exception:
+            pass
+        return result
+
+    return _run_job("precheck", run)
 
 
 @app.get("/api/knowledge/stats")
 def knowledge_stats() -> dict:
     """证据知识库规模(预检页展示用;直读模式无需构建,实时聚合)"""
     return knowledge.stats()
+
+
+# ---------------- 发布登记(产线成片回调 → 待发布 → 数据回流自动回填发布时间) ----------------
+
+class PublishBody(BaseModel):
+    title: str
+    film_key: str = ""
+    variant: str = ""
+    deliver_path: str = ""
+    final_script: str = ""
+    status: str = "pending_publish"  # pending_publish(产线回调) / published(带published_at直接登记)
+    published_at: str | None = None
+
+
+@app.post("/api/publish")
+def publish_register(body: PublishBody) -> dict:
+    """产线 make 收尾回调:登记成片(待发布)。
+    发布时间不填——下次抖音数据同步按标题自动配对回填。"""
+    from . import publish
+
+    r = publish.log_publish(
+        title=body.title,
+        final_script=body.final_script,
+        published_at=body.published_at,
+    )
+    if body.deliver_path:
+        db.conn().execute(
+            "UPDATE publish_logs SET deliver_path=? WHERE id=?", (body.deliver_path, r["id"])
+        )
+        db.conn().commit()
+    return r
+
+
+@app.get("/api/publish")
+def publish_list(limit: int = 20) -> dict:
+    from . import publish
+
+    return publish.recent(limit)
 
 
 # ---------------- 手动投喂对标(抖音等外部爆款数据) ----------------
@@ -560,7 +608,22 @@ def trigger_sync() -> dict:
 
     def _worker():
         try:
-            result = ingest.run_douyin_sync()
+            import os
+
+            if os.getenv("DOUYIN_SYNC_EXTERNAL", "").strip() == "1":
+                # 云端:触发宿主机真采集(标记文件),轮询其完成(EXTERNAL ingest 在采集尾自动跑)
+                flag = _ROOT / "data" / "sync.now"
+                flag.write_text("now", encoding="utf-8")
+                import time
+
+                for _ in range(150):  # 最多等 7.5 分钟(采集+入库)
+                    time.sleep(3)
+                    if not flag.exists():
+                        break
+                # 标记被消费后,再补一次 ingest 确保最新快照入库
+                result = ingest.ingest_douyin()
+            else:
+                result = ingest.run_douyin_sync()
             _sync_state["last_result"] = result
         except Exception as e:  # noqa: BLE001 - 状态回传
             _sync_state["error"] = str(e)[:300]
