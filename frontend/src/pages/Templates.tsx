@@ -68,7 +68,7 @@ export function Templates() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10 lg:px-10">
+    <div className="mx-auto max-w-7xl px-5 py-7 sm:px-6 sm:py-10 lg:px-10">
       <div className="eyebrow">Templates</div>
       <h1 className="mt-1 text-heading-lg text-ink">模板对比</h1>
       <p className="mt-2 max-w-xl text-body-lg text-body">

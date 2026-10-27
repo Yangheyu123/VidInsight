@@ -97,7 +97,7 @@ export function Materials() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10 lg:px-10">
+    <div className="mx-auto max-w-7xl px-5 py-7 sm:px-6 sm:py-10 lg:px-10">
       <div className="eyebrow">Materials</div>
       <div className="mt-1 flex flex-wrap items-end justify-between gap-4">
         <h1 className="text-heading-lg text-ink">素材库</h1>

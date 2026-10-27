@@ -174,7 +174,7 @@ export function Overview() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-7xl space-y-8 px-6 py-10 lg:px-10">
+      <div className="mx-auto max-w-7xl space-y-6 px-5 py-7 sm:space-y-8 sm:px-6 sm:py-10 lg:px-10">
         {/* 加载骨架屏(真实数据到达前的呼吸感) */}
         {!loaded ? (
           <>

@@ -73,7 +73,7 @@ export function Precheck() {
   const v = result && !result.error ? VERDICT[result.verdict] ?? VERDICT['小改'] : null
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10 lg:px-10">
+    <div className="mx-auto max-w-4xl px-5 py-7 sm:px-6 sm:py-10 lg:px-10">
       <div className="eyebrow">发布前干预</div>
       <h1 className="mt-1 text-heading-lg text-ink">剧本预检</h1>
       <p className="mt-2 max-w-xl text-body-md text-body">
