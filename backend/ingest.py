@@ -82,10 +82,19 @@ def ingest_douyin() -> dict:
         return {"found": len(videos), "new": new_count}
 
 
+EXTERNAL_ENV = "DOUYIN_SYNC_EXTERNAL"
+
+
 def run_douyin_sync(timeout_sec: int = 900) -> dict:
     """驱动 douyin-mcp 全量同步(subprocess)后执行 ingest。
     浏览器自动化较慢(约 2-5 分钟),供 API 异步线程 / 调度 tick 调用。
-    details 按 next_action 游标自动续跑,直到完成或 4 轮上限。"""
+    details 按 next_action 游标自动续跑,直到完成或 4 轮上限。
+    云端部署:宿主机(带 Playwright/凭证)自行跑 sync/details,
+    容器设 DOUYIN_SYNC_EXTERNAL=1 跳过 subprocess,仅执行入库。"""
+    import os
+
+    if os.getenv(EXTERNAL_ENV, "").strip() == "1":
+        return ingest_douyin()
     _cli(["sync"], timeout_sec, bg=True)
     cursor: int | None = None
     for _ in range(4):
