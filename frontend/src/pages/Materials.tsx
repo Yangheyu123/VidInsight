@@ -46,7 +46,7 @@ function ScoreBar({ label, v }: { label: string; v: number | null }) {
       <div className="h-1.5 w-20 overflow-hidden rounded-full bg-hairline">
         <div className="h-full rounded-full bg-primary" style={{ width: `${(v ?? 0) * 10}%` }} />
       </div>
-      <span className="font-mono text-[0.8125rem] tabular-nums text-body">{v?.toFixed(1) ?? '—'}</span>
+      <span className="font-mono text-[0.875rem] tabular-nums text-body">{v?.toFixed(1) ?? '—'}</span>
     </div>
   )
 }
@@ -147,7 +147,7 @@ export function Materials() {
             {f}
           </CategoryPill>
         ))}
-        <span className="ml-auto font-mono text-[0.8125rem] text-mute">{total} 条</span>
+        <span className="ml-auto font-mono text-[0.875rem] text-mute">{total} 条</span>
       </div>
 
       <Card className="mt-4" padded={false}>
@@ -188,17 +188,17 @@ export function Materials() {
                   </div>
                   <div className="flex gap-2">
                     {m.status !== '已用' && (
-                      <SquareGhost onClick={() => setStatus(m.id, '已用')} className="h-7 px-2 text-[0.8125rem]">
+                      <SquareGhost onClick={() => setStatus(m.id, '已用')} className="h-7 px-2 text-[0.875rem]">
                         采用
                       </SquareGhost>
                     )}
                     {m.status !== '丢弃' && (
-                      <SquareGhost onClick={() => setStatus(m.id, '丢弃')} className="h-7 px-2 text-[0.8125rem]">
+                      <SquareGhost onClick={() => setStatus(m.id, '丢弃')} className="h-7 px-2 text-[0.875rem]">
                         丢弃
                       </SquareGhost>
                     )}
                     {m.status !== '待用' && (
-                      <SquareGhost onClick={() => setStatus(m.id, '待用')} className="h-7 px-2 text-[0.8125rem]">
+                      <SquareGhost onClick={() => setStatus(m.id, '待用')} className="h-7 px-2 text-[0.875rem]">
                         恢复
                       </SquareGhost>
                     )}
@@ -225,7 +225,7 @@ export function Materials() {
           >
             ← 上一页
           </button>
-          <span className="font-mono text-[0.8125rem] text-body">
+          <span className="font-mono text-[0.875rem] text-body">
             {page} / {pages}
           </span>
           <button

@@ -135,7 +135,7 @@ export function Reports() {
                   {r.engine === 'llm' ? 'AI' : '统计'}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-body-md text-ink">{r.title}</span>
-                <span className="font-mono text-[0.8125rem] text-mute">
+                <span className="font-mono text-[0.875rem] text-mute">
                   {r.created_at.slice(5, 16).replace('T', ' ')}
                 </span>
               </button>

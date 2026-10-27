@@ -163,7 +163,7 @@ export function Overview() {
               <button
                 key={r}
                 onClick={() => setDays(r)}
-                className={`h-8 rounded-[4px] px-3.5 font-mono text-[0.8125rem] transition-colors ${
+                className={`h-8 rounded-[4px] px-3.5 font-mono text-[0.875rem] transition-colors ${
                   days === r ? 'bg-primary text-white' : 'text-body hover:text-ink'
                 }`}
               >
@@ -196,7 +196,7 @@ export function Overview() {
             <p className="mt-2 text-body-md text-body">
               后端未连接或统一库为空。启动后端并触发一次同步:
             </p>
-            <code className="mt-3 inline-block rounded-square border border-hairline bg-canvas px-3 py-1.5 font-mono text-[0.8125rem] text-body">
+            <code className="mt-3 inline-block rounded-square border border-hairline bg-canvas px-3 py-1.5 font-mono text-[0.875rem] text-body">
               .venv\Scripts\python -m uvicorn backend.api:app --port 8787
             </code>
             <p className="mt-3 text-body-sm text-mute">
@@ -242,7 +242,7 @@ export function Overview() {
         <Card className="min-w-0" padded={false}>
           <div className="flex flex-wrap items-end justify-between gap-4 px-6 pt-8 sm:px-8">
             <SectionHeader eyebrow="Landscape" title="全局视野" />
-            <div className="flex items-center gap-4 pb-1 font-mono text-[0.8125rem] text-mute">
+            <div className="flex items-center gap-4 pb-1 font-mono text-[0.875rem] text-mute">
               <span>自有 {scatter.ownCount} · 均 {fmtNum(scatter.ownMean)}</span>
               <span className="text-faint">|</span>
               <span>对标 {scatter.benchCount} · 均 {fmtNum(scatter.benchMean)}</span>
@@ -308,7 +308,7 @@ export function Overview() {
               eyebrow="Trend"
               title={dailyMode === 'increment' ? '播放与涨粉' : '作品累计播放 · 按发布日'}
               right={
-                <span className="pb-1 font-mono text-[0.8125rem] text-faint">
+                <span className="pb-1 font-mono text-[0.875rem] text-faint">
                   {dailyMode === 'increment' ? '日增量' : '冷启动口径 · 满2天自动切换日增量'}
                 </span>
               }
@@ -427,7 +427,7 @@ export function Overview() {
                       <span className="truncate text-body-md text-ink">{v.title}</span>
                       {isViral(v, videos) && <ViralBadge />}
                     </div>
-                    <div className="mt-0.5 font-mono text-[0.8125rem] text-mute">
+                    <div className="mt-0.5 font-mono text-[0.875rem] text-mute">
                       {fmtDate(v.publishTime)} · {fmtNum(v.views)}
                     </div>
                   </div>

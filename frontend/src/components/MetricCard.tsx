@@ -46,7 +46,7 @@ export function MetricCard({
       ) : (
         <div className="mt-2.5 flex items-center gap-2">
           {delta != null && (
-            <span className={`font-mono text-[0.8125rem] font-medium ${highlight ? 'text-cyan-soft' : deltaColor}`}>
+            <span className={`font-mono text-[0.875rem] font-medium ${highlight ? 'text-cyan-soft' : deltaColor}`}>
               {delta >= 0 ? '▲' : '▼'} {fmtDelta(delta).replace('+', '').replace('-', '')}
             </span>
           )}

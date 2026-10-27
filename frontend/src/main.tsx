@@ -14,3 +14,8 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 )
+
+// PWA:注册 Service Worker(Android Chrome「安装应用」的可安装性判定必需)
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('/sw.js').catch(() => {})
+}

@@ -12,7 +12,7 @@ type BaseProps = ButtonHTMLAttributes<HTMLButtonElement>
 export function SquarePrimary({ children, className = '', ...rest }: BaseProps) {
   return (
     <button
-      className={`btn-press inline-flex h-8 items-center gap-1.5 rounded-square bg-primary px-3 text-label-sm text-white hover:bg-ink disabled:opacity-40 ${className}`}
+      className={`btn-press inline-flex h-10 items-center gap-1.5 rounded-square bg-primary px-3.5 text-label-sm text-white hover:bg-ink disabled:opacity-40 ${className}`}
       {...rest}
     >
       {children}
@@ -24,7 +24,7 @@ export function SquarePrimary({ children, className = '', ...rest }: BaseProps) 
 export function SquareGhost({ children, className = '', ...rest }: BaseProps) {
   return (
     <button
-      className={`btn-press inline-flex h-8 items-center gap-1.5 rounded-square border border-hairline bg-elevated px-3 text-label-sm text-ink hover:bg-hairline-soft disabled:opacity-40 ${className}`}
+      className={`btn-press inline-flex h-10 items-center gap-1.5 rounded-square border border-hairline bg-elevated px-3.5 text-label-sm text-ink hover:bg-hairline-soft disabled:opacity-40 ${className}`}
       {...rest}
     >
       {children}

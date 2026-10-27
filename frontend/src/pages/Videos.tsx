@@ -182,7 +182,7 @@ export function Videos() {
                 <button
                   key={p}
                   onClick={() => setPlat(p)}
-                  className={`h-8 rounded-[4px] px-3 font-mono text-[0.8125rem] transition-colors ${
+                  className={`h-8 rounded-[4px] px-3 font-mono text-[0.875rem] transition-colors ${
                     plat === p ? 'bg-primary text-white' : 'text-body hover:text-ink'
                   }`}
                 >
@@ -225,7 +225,7 @@ export function Videos() {
                     <button
                       key={p}
                       onClick={() => setNewPlat(p)}
-                      className={`h-8 rounded-[4px] px-3 font-mono text-[0.8125rem] transition-colors ${
+                      className={`h-8 rounded-[4px] px-3 font-mono text-[0.875rem] transition-colors ${
                         newPlat === p ? 'bg-primary text-white' : 'text-body hover:text-ink'
                       }`}
                     >
@@ -342,12 +342,32 @@ export function Videos() {
                 <div className="mt-1 text-[0.75rem] text-mute">
                   {fmtDate(v.publishTime)} · {fmtDur(v.durationSec)}
                 </div>
-                <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[0.8125rem] tabular-nums">
-                  <span className="text-ink">播 {fmtNum(v.views)}</span>
-                  <span className="text-body">赞 {fmtNum(v.likes)}</span>
-                  <span className="text-body">完播 {fmtPct(v.completionRate)}</span>
-                  <span className="text-body">2s跳 {fmtPct(v.skip2sRate)}</span>
-                  <span className="font-medium text-link-deep">收藏率 {fmtPct(fr)}</span>
+                <div className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2 border-t border-hairline pt-3">
+                  <span className="font-mono text-[0.875rem] tabular-nums text-ink">
+                    <span className="text-[0.75rem] text-mute">播放</span>
+                    <br />
+                    {fmtNum(v.views)}
+                  </span>
+                  <span className="font-mono text-[0.875rem] tabular-nums text-body">
+                    <span className="text-[0.75rem] text-mute">点赞</span>
+                    <br />
+                    {fmtNum(v.likes)}
+                  </span>
+                  <span className="font-mono text-[0.875rem] tabular-nums text-body">
+                    <span className="text-[0.75rem] text-mute">完播</span>
+                    <br />
+                    {fmtPct(v.completionRate)}
+                  </span>
+                  <span className="font-mono text-[0.875rem] tabular-nums text-body">
+                    <span className="text-[0.75rem] text-mute">2秒跳出</span>
+                    <br />
+                    {fmtPct(v.skip2sRate)}
+                  </span>
+                  <span className="col-span-2 font-mono text-[0.875rem] font-medium tabular-nums text-link-deep">
+                    <span className="text-[0.75rem] font-normal text-mute">收藏率(核心KPI)</span>
+                    <br />
+                    {fmtPct(fr)}
+                  </span>
                 </div>
               </button>
             )
@@ -368,7 +388,7 @@ export function Videos() {
                   <th
                     key={c.label}
                     onClick={() => toggleSort(c.key)}
-                    className={`px-4 py-3.5 font-mono text-[0.8125rem] font-medium uppercase tracking-normal text-mute ${
+                    className={`px-4 py-3.5 font-mono text-[0.875rem] font-medium uppercase tracking-normal text-mute ${
                       c.key ? 'cursor-pointer select-none hover:text-ink' : ''
                     } ${c.align === 'right' ? 'text-right' : 'text-left'}`}
                   >
@@ -400,23 +420,23 @@ export function Videos() {
                         {v.accountId ?? templateName(v.templateId)}
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 font-mono text-[0.8125rem] text-body">{fmtDate(v.publishTime)}</td>
-                    <td className="px-4 py-3.5 font-mono text-[0.8125rem] text-body">{fmtDur(v.durationSec)}</td>
-                    <td className="px-4 py-3.5 text-right font-mono text-[0.8125rem] tabular-nums text-ink">{fmtNum(v.views)}</td>
-                    <td className="px-4 py-3.5 text-right font-mono text-[0.8125rem] tabular-nums text-body">{fmtNum(v.likes)}</td>
-                    <td className="px-4 py-3.5 text-right font-mono text-[0.8125rem] tabular-nums text-body">
+                    <td className="px-4 py-3.5 font-mono text-[0.875rem] text-body">{fmtDate(v.publishTime)}</td>
+                    <td className="px-4 py-3.5 font-mono text-[0.875rem] text-body">{fmtDur(v.durationSec)}</td>
+                    <td className="px-4 py-3.5 text-right font-mono text-[0.875rem] tabular-nums text-ink">{fmtNum(v.views)}</td>
+                    <td className="px-4 py-3.5 text-right font-mono text-[0.875rem] tabular-nums text-body">{fmtNum(v.likes)}</td>
+                    <td className="px-4 py-3.5 text-right font-mono text-[0.875rem] tabular-nums text-body">
                       {fmtPct(v.completionRate)}
                     </td>
-                    <td className="px-4 py-3.5 text-right font-mono text-[0.8125rem] tabular-nums text-body">
+                    <td className="px-4 py-3.5 text-right font-mono text-[0.875rem] tabular-nums text-body">
                       {fmtPct(v.completion5sRate)}
                     </td>
-                    <td className="px-4 py-3.5 text-right font-mono text-[0.8125rem] tabular-nums text-body">
+                    <td className="px-4 py-3.5 text-right font-mono text-[0.875rem] tabular-nums text-body">
                       {fmtPct(v.skip2sRate)}
                     </td>
-                    <td className="px-4 py-3.5 text-right font-mono text-[0.8125rem] font-medium tabular-nums text-link-deep">
+                    <td className="px-4 py-3.5 text-right font-mono text-[0.875rem] font-medium tabular-nums text-link-deep">
                       {fmtPct(fr)}
                     </td>
-                    <td className="px-4 py-3.5 text-right font-mono text-[0.8125rem] tabular-nums text-body">{fmtNum(v.favorites)}</td>
+                    <td className="px-4 py-3.5 text-right font-mono text-[0.875rem] tabular-nums text-body">{fmtNum(v.favorites)}</td>
                   </tr>
                 )
               })}
@@ -462,7 +482,7 @@ export function Videos() {
                   {isViral(selected, videos) && <ViralBadge />}
                 </div>
                 <h2 className="mt-3 text-heading-md text-ink">{selected.title}</h2>
-                <div className="mt-1 font-mono text-[0.8125rem] text-mute">
+                <div className="mt-1 font-mono text-[0.875rem] text-mute">
                   {fmtDate(selected.publishTime, true)}
                 </div>
               </div>
