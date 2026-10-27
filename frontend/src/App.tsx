@@ -13,6 +13,7 @@ import { Materials } from './pages/Materials'
 import { Precheck } from './pages/Precheck'
 import { MaterialsMobile, ReportsMobile, VideosMobile } from './mobile/views'
 import { useIsMobile } from './mobile/primitives'
+import { UpdateBar } from './components/UpdateBar'
 import { isDemoMode } from './data/source'
 import type { SyncStatus } from './types'
 
@@ -206,6 +207,7 @@ export default function App() {
       />
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} actions={actions} />
+      <UpdateBar />
 
       <div className="min-w-0 flex-1">
         {/* 移动端顶栏 */}
