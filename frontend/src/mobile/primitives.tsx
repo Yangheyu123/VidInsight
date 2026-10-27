@@ -20,7 +20,7 @@ export function useIsMobile(): boolean {
   return m
 }
 
-/** 移动页壳:紧凑页头(标题+副题+主操作槽)+ 内容区 */
+/** 移动页壳:整页不滚动——标题+内容+分页全部落在可视区(100dvh 减顶底栏) */
 export function MobilePage({
   title,
   desc,
@@ -33,7 +33,7 @@ export function MobilePage({
   children: ReactNode
 }) {
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-24 pt-6">
+    <div className="mx-auto flex min-h-[calc(100dvh-7rem)] w-full max-w-3xl flex-col px-4 pb-3 pt-5">
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-heading-md text-ink">{title}</h1>
@@ -41,15 +41,15 @@ export function MobilePage({
         </div>
         {action}
       </div>
-      <div className="mt-5">{children}</div>
+      <div className="mt-4 flex flex-1 flex-col">{children}</div>
     </div>
   )
 }
 
-/** 列表容器:hairline 分隔的紧凑列表(GitHub 招牌) */
+/** 列表容器:占满剩余高度,行多时仅列表内部滚动(页面本身不滚) */
 export function MobileList({ children }: { children: ReactNode }) {
   return (
-    <div className="divide-y divide-hairline overflow-hidden rounded-card border border-hairline bg-elevated">
+    <div className="divide-y divide-hairline overflow-y-auto rounded-card border border-hairline bg-elevated">
       {children}
     </div>
   )
@@ -101,7 +101,7 @@ export function MobileRow({
         )}
       </button>
       {open && children && (
-        <div className="border-t border-hairline bg-canvas px-4 py-3.5">{children}</div>
+        <div className="max-h-[42dvh] overflow-y-auto border-t border-hairline bg-canvas px-4 py-3.5">{children}</div>
       )}
     </div>
   )
@@ -135,7 +135,7 @@ export function MobilePager({
 }) {
   if (pages <= 1) return null
   return (
-    <div className="mt-4 flex items-center gap-3">
+    <div className="mt-auto flex items-center gap-3 pt-3">
       <button
         disabled={page <= 1}
         onClick={() => onChange(page - 1)}

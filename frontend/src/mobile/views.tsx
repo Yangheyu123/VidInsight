@@ -9,7 +9,7 @@ import type { Video } from '../types'
 import { useJob } from '../pages/Reports'
 import { MobileList, MobilePage, MobilePager, MobileRow, MobileStats } from './primitives'
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 6 // 一屏一页:6行+分页器不滚动
 const PLATFORM: Record<string, string> = { douyin: '抖音', bilibili: 'B站', youtube: 'YT' }
 
 /* ---------------- 作品明细 ---------------- */
