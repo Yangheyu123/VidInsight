@@ -243,7 +243,7 @@ export function ReportsMobile() {
             meta={r.created_at.slice(5, 16).replace('T', ' ')}
           >
             {html[r.id] ? (
-              <div className="report-md text-body-sm leading-relaxed text-body" dangerouslySetInnerHTML={{ __html: html[r.id] }} />
+              <div className="md text-body-sm" dangerouslySetInnerHTML={{ __html: html[r.id] }} />
             ) : (
               <div className="text-body-sm text-mute">加载中…</div>
             )}

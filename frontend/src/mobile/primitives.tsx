@@ -79,9 +79,9 @@ export function MobileRow({
         className="flex min-h-[3.25rem] w-full items-center gap-3 px-4 py-3 text-left active:bg-hairline-soft"
       >
         <div className="min-w-0 flex-1">
-          {badges && <div className="flex flex-wrap items-center gap-1.5">{badges}</div>}
-          <div className="mt-0.5 truncate font-medium text-ink">{title}</div>
-          {meta && <div className="mt-0.5 truncate text-body-sm text-mute">{meta}</div>}
+          {badges && <div className="mb-1 flex flex-wrap items-center gap-1.5">{badges}</div>}
+          <div className="line-clamp-2 font-medium leading-snug text-ink">{title}</div>
+          {meta && <div className="mt-1 line-clamp-2 text-body-sm leading-snug text-mute">{meta}</div>}
         </div>
         {children && (
           <svg

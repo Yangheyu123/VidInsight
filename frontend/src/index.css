@@ -346,3 +346,11 @@ body {
 *::-webkit-scrollbar-thumb:hover {
   background: var(--color-faint);
 }
+
+/* 手机端报告 markdown:表格允许行内横滑,不撑破页面 */
+@media (max-width: 640px) {
+  .md h1 { font-size: 19px; line-height: 27px; }
+  .md h2 { font-size: 16px; margin: 22px 0 8px; }
+  .md table { display: block; overflow-x: auto; white-space: nowrap; }
+  .md th, .md td { padding: 5px 8px; font-size: 12.5px; }
+}
