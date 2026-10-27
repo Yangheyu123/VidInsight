@@ -9,6 +9,8 @@ services:
       - ./data:/app/data          # 数据库持久化(服务器侧只读展示+报告)
       # 云端采集:宿主机 douyin-mcp(带 Playwright+登录凭证)写入的 sqlite,容器只读入库
       - /root/douyin-mcp/data:/app/vendors/douyin-mcp/data
+    env_file:
+      - .env                     # LLM/通知密钥注入容器(服务器端报告必需)
     environment:
       - TZ=Asia/Shanghai
       - DOUYIN_SYNC_EXTERNAL=1    # 容器不做浏览器 subprocess,sync 由宿主机 cron 执行
