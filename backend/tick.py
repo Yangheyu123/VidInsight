@@ -39,6 +39,7 @@ def _mark_next(sid: str, interval_minutes: int) -> None:
 
 def tick() -> None:
     db.init_db()
+    now = datetime.now(tz=ZoneInfo(BJ_TZ))
 
     # ---- P0 备份:每日滚动备份 platform.db(保留 7 份)+ 云同步 ----
     backup_path = None
@@ -64,8 +65,8 @@ def tick() -> None:
     except Exception as e:  # noqa: BLE001
         print(f"[tick] 备份失败:{e}")
 
-    # ---- 云同步:备份后推到服务器(展示端),密码走 SSH key;失败不影响主流程 ----
-    if backup_path:
+    # ---- 云同步:本地机专用,推备份到展示服务器;服务器自身(DOUYIN_SYNC_EXTERNAL=1)跳过 ----
+    if backup_path and os.getenv("DOUYIN_SYNC_EXTERNAL", "").strip() != "1":
         try:
             import subprocess
 
