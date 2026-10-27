@@ -260,32 +260,34 @@ export default function App() {
             <span className="text-body-sm text-mute">douyin-mcp → SQLite → React</span>
           </div>
           {/* 手机端底部留白,避免内容被 Tab 栏盖住 */}
-          <div className="h-16 md:hidden" aria-hidden />
+          <div className="h-20 md:hidden" aria-hidden />
         </footer>
       </div>
 
       {/* ---- 手机端底部 Tab 栏(拇指区导航) ---- */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-hairline bg-canvas/90 backdrop-blur-md md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-hairline bg-canvas md:hidden"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         aria-label="主导航"
       >
         {([
-          ['overview', '总览'],
-          ['videos', '作品'],
-          ['precheck', '预检'],
-          ['reports', '报告'],
-          ['materials', '素材'],
-        ] as const).map(([key, label]) => (
+          ['overview', '总览', 'M2 4h12M2 8h12M2 12h9'],
+          ['videos', '作品', 'M1.5 2.5h13v8h-13zM5 13.5h6M8 10.5v3'],
+          ['precheck', '预检', 'M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13Zm-2.5 6.5 1.8 1.8L10.8 6.3'],
+          ['reports', '报告', 'M3 1.5h7l3 3v10H3zM10 1.5v3h3'],
+          ['materials', '素材', 'M8 2 14.5 5 8 8.5 1.5 5 8 2Zm-6.5 6 6.5 3.5 6.5-3.5'],
+        ] as const).map(([key, label, d]) => (
           <button
             key={key}
             onClick={() => go(key)}
-            className={`flex h-14 flex-1 flex-col items-center justify-center gap-0.5 ${
+            className={`flex h-14 flex-1 flex-col items-center justify-center gap-1 ${
               route === key ? 'text-ink' : 'text-mute'
             }`}
           >
-            <span className={`size-1.5 rounded-full ${route === key ? 'bg-primary' : 'bg-transparent'}`} aria-hidden />
-            <span className="text-[0.6875rem] font-medium">{label}</span>
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d={d} />
+            </svg>
+            <span className={`text-[0.6875rem] ${route === key ? 'font-semibold' : ''}`}>{label}</span>
           </button>
         ))}
       </nav>

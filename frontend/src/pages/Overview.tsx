@@ -152,11 +152,11 @@ export function Overview() {
       {/* ---- hero band:白画布 + mesh 渐变(全站唯一装饰) ---- */}
       <section className="relative overflow-hidden border-b border-hairline">
         <div className="mesh-bloom -top-24 right-0 h-80 w-[620px] rotate-6" aria-hidden />
-        <div className="relative mx-auto flex max-w-7xl flex-wrap items-end justify-between gap-4 px-6 py-10 sm:gap-6 sm:py-16 lg:px-10">
+        <div className="relative mx-auto flex max-w-7xl flex-wrap items-end justify-between gap-4 px-6 py-7 sm:gap-6 sm:py-16 lg:px-10">
           <div className="min-w-0">
             <div className="eyebrow">Douyin Ops</div>
-            <h1 className="mt-2 text-heading-lg text-ink">总览</h1>
-            <p className="mt-3 text-body-md text-mute">青年思辨哲学 · 18–23 男性 · 核心指标 收藏率</p>
+            <h1 className="mt-1.5 text-heading-md text-ink sm:mt-2 sm:text-heading-lg">总览</h1>
+            <p className="mt-1.5 text-body-sm text-mute sm:mt-3 sm:text-body-md">青年思辨哲学 · 18–23 男性 · 核心指标 收藏率</p>
           </div>
           <div className="flex overflow-x-auto rounded-square border border-hairline bg-elevated p-0.5">
             {RANGES.map((r) => (
@@ -178,7 +178,7 @@ export function Overview() {
         {/* 加载骨架屏(真实数据到达前的呼吸感) */}
         {!loaded ? (
           <>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-6">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="rounded-card border border-hairline bg-elevated p-8">
                   <div className="skeleton h-4 w-16 rounded-[3px]" />
@@ -206,7 +206,7 @@ export function Overview() {
         ) : (
           <>
         {/* ---- 六指标卡(KPI=互动三率 ---- */}
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-6">
           <MetricCard
             label="播放量"
             value={fmtNum(stats.plays)}
