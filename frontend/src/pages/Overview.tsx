@@ -199,9 +199,6 @@ export function Overview() {
             <code className="mt-3 inline-block rounded-square border border-hairline bg-canvas px-3 py-1.5 font-mono text-[0.875rem] text-body">
               .venv\Scripts\python -m uvicorn backend.api:app --port 8787
             </code>
-            <p className="mt-3 text-body-sm text-mute">
-              想预览界面效果?页脚「切换演示数据」可显式开启虚构样例(带全站横幅标识)。
-            </p>
           </Card>
         ) : (
           <>
