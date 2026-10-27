@@ -259,15 +259,8 @@ export default function App() {
           </div>
         </main>
 
-        <footer className="border-t border-hairline">
-          <div className="flex items-center gap-4 px-6 py-6 lg:px-10">
-            <span className="text-body-sm text-mute">Phase 1 · 抖音数据中台</span>
-            <span className="text-faint">·</span>
-            <span className="text-body-sm text-mute">douyin-mcp → SQLite → React</span>
-          </div>
-          {/* 手机端底部留白,避免内容被 Tab 栏盖住 */}
-          <div className="h-20 md:hidden" aria-hidden />
-        </footer>
+        {/* 手机端底部留白,避免内容被 Tab 栏盖住(桌面无footer) */}
+        <div className="h-20 md:hidden" aria-hidden />
       </div>
 
       {/* ---- 手机端底部 Tab 栏(拇指区导航) ---- */}
