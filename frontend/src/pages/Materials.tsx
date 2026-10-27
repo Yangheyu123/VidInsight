@@ -153,10 +153,10 @@ export function Materials() {
       <Card className="mt-4" padded={false}>
         <div className="divide-y divide-hairline">
           {list.map((m) => (
-            <div key={m.id} className="px-8 py-5">
-              <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
+            <div key={m.id} className="px-5 py-4 sm:px-8 sm:py-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:gap-x-6 sm:gap-y-3">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full border border-hairline px-2 py-0.5 text-body-sm text-body">
                       {SOURCE_LABEL[m.source] ?? m.source}
                     </span>
@@ -166,23 +166,27 @@ export function Materials() {
                       </span>
                     )}
                     <span className="text-body-sm text-mute">{m.status}</span>
+                    <span className="ml-auto font-mono text-[1.125rem] font-semibold tabular-nums text-ink sm:hidden">
+                      {m.score?.toFixed(1) ?? '—'}
+                    </span>
                   </div>
                   <a
                     href={m.url ?? '#'}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-2 block text-label-sm text-ink hover:text-link"
+                    className="mt-2 block text-body-md font-medium leading-relaxed text-ink hover:text-link"
                   >
                     {m.title}
                   </a>
-                  {m.suggestion && <p className="mt-1.5 text-body-md text-mute">{m.suggestion}</p>}
-                  <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+                  {m.suggestion && <p className="mt-1.5 text-body-sm leading-relaxed text-body">{m.suggestion}</p>}
+                  <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
                     <ScoreBar label="相关" v={m.relevance} />
                     <ScoreBar label="冲突" v={m.conflict} />
                     <ScoreBar label="收藏" v={m.save_potential} />
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
+                {/* 桌面:右侧大分数+操作 */}
+                <div className="hidden flex-col items-end gap-2 sm:flex">
                   <div className="text-[1.75rem] leading-9 font-semibold tracking-[-1px] tabular-nums text-ink">
                     {m.score?.toFixed(1) ?? '—'}
                   </div>
@@ -204,6 +208,18 @@ export function Materials() {
                     )}
                   </div>
                 </div>
+              </div>
+              {/* 手机:分数挪进标签行,操作整行铺开 */}
+              <div className="mt-3 flex gap-2 sm:hidden">
+                {m.status !== '已用' && (
+                  <SquareGhost onClick={() => setStatus(m.id, '已用')} className="flex-1">采用</SquareGhost>
+                )}
+                {m.status !== '丢弃' && (
+                  <SquareGhost onClick={() => setStatus(m.id, '丢弃')} className="flex-1">丢弃</SquareGhost>
+                )}
+                {m.status !== '待用' && (
+                  <SquareGhost onClick={() => setStatus(m.id, '待用')} className="flex-1">恢复</SquareGhost>
+                )}
               </div>
             </div>
           ))}

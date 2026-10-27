@@ -11,6 +11,8 @@ import { Templates } from './pages/Templates'
 import { Reports } from './pages/Reports'
 import { Materials } from './pages/Materials'
 import { Precheck } from './pages/Precheck'
+import { MaterialsMobile, ReportsMobile, VideosMobile } from './mobile/views'
+import { useIsMobile } from './mobile/primitives'
 import { isDemoMode } from './data/source'
 import type { SyncStatus } from './types'
 
@@ -23,6 +25,7 @@ function routeFromHash(): Route {
 
 export default function App() {
   const [route, setRoute] = useState<Route>(routeFromHash)
+  const isMobile = useIsMobile()
   const [sync, setSync] = useState<SyncStatus | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [demo] = useState(isDemoMode())
@@ -244,11 +247,12 @@ export default function App() {
 
         <main className="flex-1">
           <div key={route} className="page-enter">
+            {/* 数据密集页在手机走独立移动层(GitHub列表→详情哲学),桌面/其余页共用 */}
             {route === 'overview' && <Overview />}
-            {route === 'videos' && <Videos />}
+            {route === 'videos' && (isMobile ? <VideosMobile /> : <Videos />)}
             {route === 'templates' && <Templates />}
-            {route === 'reports' && <Reports />}
-            {route === 'materials' && <Materials />}
+            {route === 'reports' && (isMobile ? <ReportsMobile /> : <Reports />)}
+            {route === 'materials' && (isMobile ? <MaterialsMobile /> : <Materials />)}
             {route === 'precheck' && <Precheck />}
           </div>
         </main>
