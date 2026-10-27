@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 import type { SyncStatus } from '../types'
 import { fmtDate } from '../data/format'
 
-export type Route = 'overview' | 'videos' | 'templates' | 'reports' | 'materials'
+export type Route = 'overview' | 'videos' | 'templates' | 'reports' | 'materials' | 'precheck'
 
 const I = {
   stroke: 'currentColor',
@@ -25,6 +25,12 @@ function Icon({ children }: { children: ReactNode }) {
 }
 
 const ICONS: Record<Route, ReactNode> = {
+  precheck: (
+    <Icon>
+      <path d="M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13Z" />
+      <path d="m5.5 8 1.8 1.8L10.8 6.3" />
+    </Icon>
+  ),
   overview: (
     <Icon>
       <rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2" />
@@ -60,7 +66,7 @@ const ICONS: Record<Route, ReactNode> = {
 
 const GROUPS: { label: string; items: { key: Route; label: string }[] }[] = [
   { label: '数据', items: [{ key: 'overview', label: '总览' }, { key: 'videos', label: '作品明细' }] },
-  { label: '分析', items: [{ key: 'templates', label: '模板对比' }, { key: 'reports', label: '报告中心' }] },
+  { label: '分析', items: [{ key: 'precheck', label: '剧本预检' }, { key: 'templates', label: '模板对比' }, { key: 'reports', label: '报告中心' }] },
   { label: '采集', items: [{ key: 'materials', label: '素材库' }] },
 ]
 

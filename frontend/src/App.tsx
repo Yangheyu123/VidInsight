@@ -10,10 +10,11 @@ import { Videos } from './pages/Videos'
 import { Templates } from './pages/Templates'
 import { Reports } from './pages/Reports'
 import { Materials } from './pages/Materials'
+import { Precheck } from './pages/Precheck'
 import { isDemoMode } from './data/source'
 import type { SyncStatus } from './types'
 
-const VALID: Route[] = ['overview', 'videos', 'templates', 'reports', 'materials']
+const VALID: Route[] = ['overview', 'videos', 'templates', 'reports', 'materials', 'precheck']
 
 function routeFromHash(): Route {
   const h = window.location.hash.replace('#/', '') as Route
@@ -133,6 +134,7 @@ export default function App() {
       { id: 'go-videos', label: '前往作品明细', group: '导航', run: () => go('videos') },
       { id: 'go-templates', label: '前往模板对比', group: '导航', run: () => go('templates') },
       { id: 'go-reports', label: '前往报告中心', group: '导航', run: () => go('reports') },
+      { id: 'go-precheck', label: '前往剧本预检', group: '导航', run: () => go('precheck') },
       { id: 'go-materials', label: '前往素材库', group: '导航', run: () => go('materials') },
       { id: 'act-sync', label: '立即同步抖音数据(无头后台)', group: '数据', run: () => void runSync() },
       {
@@ -247,6 +249,7 @@ export default function App() {
             {route === 'templates' && <Templates />}
             {route === 'reports' && <Reports />}
             {route === 'materials' && <Materials />}
+            {route === 'precheck' && <Precheck />}
           </div>
         </main>
 

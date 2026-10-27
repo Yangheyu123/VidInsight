@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import db, ingest, llm, materials, radar, report, scripts_ingest
+from . import db, ingest, knowledge, llm, materials, precheck, radar, report, scripts_ingest
 from .config import API_HOST, API_PORT, BJ_TZ
 
 app = FastAPI(title="抖音运营中台 API", version="0.1.0")
@@ -35,6 +35,7 @@ _sync_state = {"running": False, "last_result": None, "error": None}
 _jobs: dict[str, dict] = {
     "report": {"running": False}, "materials": {"running": False},
     "radar": {"running": False}, "scripts": {"running": False},
+    "precheck": {"running": False},
 }
 _jobs_lock = threading.Lock()
 
@@ -311,6 +312,23 @@ class ReportBody(BaseModel):
 def report_generate(body: ReportBody | None = None) -> dict:
     scope = (body.scope if body else "own") or "own"
     return _run_job("report", report.generate, scope=scope)
+
+
+# ---------------- 剧本发布前预检(网页AI剧本 → 粘贴体检 → 喂 agent) ----------------
+
+class PrecheckBody(BaseModel):
+    text: str
+
+
+@app.post("/api/precheck")
+def precheck_api(body: PrecheckBody) -> dict:
+    return _run_job("precheck", precheck.precheck, body.text)
+
+
+@app.get("/api/knowledge/stats")
+def knowledge_stats() -> dict:
+    """证据知识库规模(预检页展示用;直读模式无需构建,实时聚合)"""
+    return knowledge.stats()
 
 
 # ---------------- 手动投喂对标(抖音等外部爆款数据) ----------------
